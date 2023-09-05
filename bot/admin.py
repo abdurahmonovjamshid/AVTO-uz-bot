@@ -1,18 +1,23 @@
 from django.contrib import admin
 
-from .models import Car, TgUser, CarImage
+from .models import Car, CarImage, TgUser
 
-# Register your models here.
+
+class CarImageInline(admin.TabularInline):
+    model = CarImage
+    extra = 1
+
 
 @admin.register(TgUser)
 class TgUserAdmin(admin.ModelAdmin):
     pass
 
-@admin.register(Car) 
+
+@admin.register(Car)
 class CarAdmin(admin.ModelAdmin):
-    pass
+    inlines = [CarImageInline]
 
 
-@admin.register(CarImage) 
+@admin.register(CarImage)
 class CarImageAdmin(admin.ModelAdmin):
     pass

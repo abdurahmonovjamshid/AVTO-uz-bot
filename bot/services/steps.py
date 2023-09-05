@@ -8,4 +8,8 @@ USER_STEP = {
     "ADD_PRICE":4,
     "ADD_DESCRIPTION":5,
     "ADD_NUMBER":6,
+
+    # search car
+    "SEARCH_CAR":7,
+
 }
