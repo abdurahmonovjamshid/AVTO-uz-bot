@@ -7,13 +7,13 @@ from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup, InputFile
 
-from conf.settings import TELEGRAM_BOT_TOKEN
+from conf.settings import ADMINS, TELEGRAM_BOT_TOKEN
 
 from .buttons.default import cencel, main_button
 from .buttons.inline import urlkb
-from .models import Car, TgUser
+from .models import Car, Search, TgUser
 from .services.addcar import (add_car, add_description, add_model, add_number,
-                              add_price, add_year, search_car)
+                              add_price, add_year, paginated, search_car)
 from .services.steps import USER_STEP
 
 bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
@@ -138,7 +138,7 @@ def cencel_car(message):
 def cm_start(message):
     try:
         user = TgUser.objects.get(telegram_id=message.from_user.id)
-        if user.car_set.all().count() < 3:
+        if user.car_set.all().count() < 3 or str(user.telegram_id) in ADMINS:
             TgUser.objects.filter(telegram_id=message.from_user.id).update(
                 step=USER_STEP['ADD_CAR'])
             bot.send_message(
@@ -205,6 +205,69 @@ def cm_start(message):
         print(e)
 
 
+@bot.callback_query_handler(func=lambda call: call.data.startswith('prev') or call.data.startswith('next'))
+def next_prev_calback(call):
+    try:
+        if call.data.startswith('prev'):
+            search_id = call.data.replace('prev ', '')
+
+            search = Search.objects.get(pk=search_id)
+            text = search.text
+            if search.currnet_page > 1:
+                search.currnet_page -= 1
+                search.save()
+                page = search.currnet_page
+            else:
+                bot.answer_callback_query(
+                    callback_query_id=call.id, text="Oldingi ro'yhat yo'q!", show_alert=True)
+                return
+            cars = paginated(text=text)
+
+        if call.data.startswith('next'):
+            search_id = call.data.replace('next ', '')
+
+            search = Search.objects.get(pk=search_id)
+            text = search.text
+
+            cars = paginated(text=text)
+
+            if len(cars) >= search.currnet_page*10:
+                search.currnet_page += 1
+                search.save()
+                page = search.currnet_page
+            else:
+                bot.answer_callback_query(
+                    callback_query_id=call.id, text="Keyingi ro'yhat yo'q!", show_alert=True)
+                return
+
+        inline_kb = InlineKeyboardMarkup(row_width=5)
+        buttons = []
+        text = f"<strong>{text}</strong> so'rovi bo'yicha natijalar:\n{len(cars)} dan {page*10-9} - {page*10 if len(cars)>=page*10 else len(cars)}\n\n"
+        text += "<pre>"
+        text += "{:<3} {:<10} {:<6} {:<9}\n\n".format(
+            "No.", "Nomi", "Yili", "Narxi")
+        print(cars[page*10-10: page*10])
+        for count, car in enumerate(cars[page*10-10: page*10]):
+            text += "{:<3} {:<10} {:<6} {:<9}$\n".format(
+                str(count+1)+".", car.name, car.year, car.price)
+            button = InlineKeyboardButton(
+                text=str(count+1), callback_data=f"retrieve_{car.id}")
+            buttons.append(button)
+
+        text += "</pre>"
+        inline_kb.add(*buttons)
+        inline_kb.add(InlineKeyboardButton(f'⬅', callback_data=f'prev {search_id}'),
+                      InlineKeyboardButton(
+                          f'❌', callback_data=f'del {search_id}'),
+                      InlineKeyboardButton(f'➡', callback_data=f'next {search_id}'))
+
+        bot.edit_message_text(chat_id=call.message.chat.id,
+                              message_id=call.message.message_id,
+                              text=text, parse_mode='html', reply_markup=inline_kb)
+    except Exception as e:
+        print(e)
+
+
 @bot.message_handler(content_types=['text', 'contact', 'photo'])
 def text_handler(message):
     try:
@@ -221,7 +284,7 @@ def text_handler(message):
         print(TgUser.objects.get(telegram_id=message.chat.id).step)
         func = switcher.get(TgUser.objects.get(
             telegram_id=message.chat.id).step)
-        print(func)
+        # print(func)
         if func:
             func(message, bot)
         else:

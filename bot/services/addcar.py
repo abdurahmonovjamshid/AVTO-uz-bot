@@ -1,7 +1,13 @@
 import re
 
+import telebot
+from django.db.models import Q
+from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
+
+from conf.settings import ADMINS, CHANNEL_ID
+
 from ..buttons.default import ask_phone, main_button
-from ..models import Car, CarImage, TgUser
+from ..models import Car, CarImage, Search, TgUser
 from ..services.steps import USER_STEP
 
 phone_number_pattern = r'^\+?\d{1,3}[-.\s]?\(?\d{1,3}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}$'
@@ -132,6 +138,7 @@ def add_number(message, bot):
                 user.save()
                 bot.send_message(message.from_user.id, text='E\'lon muvofaqiyatli joylandi',
                                  reply_markup=main_button, parse_mode='html')
+
             else:
                 bot.send_message(
                     message.from_user.id, text='Iltimos telefon raqamini to\'g\'ri farmatda kiriting.', parse_mode='html')
@@ -146,11 +153,122 @@ def add_number(message, bot):
             user.save()
             bot.send_message(message.from_user.id, text='E\'lon muvofaqiyatli joylandi',
                              reply_markup=main_button, parse_mode='html')
+
+        if car:
+            # send new car to admins and channel
+            text = f"Nomi: {car.name},\nModeli: {car.model},\nIshlab chiqarilgan yil: {car.year},\nNarxi: {car.price},\nQo'shimcha malumot: \n{car.description},\n\nBog'lanish: {car.contact_number}"
+            media_group = [telebot.types.InputMediaPhoto(
+                media=car.images.first().image_link, caption=text)]
+            for photo in car.images.all()[1:]:
+                media_group.append(
+                    telebot.types.InputMediaPhoto(media=photo.image_link))
+            for admin in ADMINS:
+                msg = bot.send_media_group(
+                    chat_id=admin, media=media_group)
+                ids = ''
+                for a in msg:
+                    ids += ','+str(a.id)
+                # print(ids, '\n')
+                bot.reply_to(message=msg[0], text="Ushbu e\'lonni o\'chirish", reply_markup=InlineKeyboardMarkup().add(
+                    InlineKeyboardButton(text=f'O\'chirish', callback_data=f'del_{car.id}'+ids)))
+
+            # send to channel
+            bot.send_media_group(
+                chat_id=CHANNEL_ID, media=media_group)
+
     except Exception as e:
         print(e)
         bot.send_message(
             message.from_user.id, text='Iltimos telefon raqamini to\'g\'ri farmatda kiriting.', parse_mode='html')
 
 
+def get_serach_result(text, user_id):
+    search_text = text
+    user = TgUser.objects.get(telegram_id=user_id)
+
+    patterns = search_text.split(' ')
+    cars = []
+    if 50 > len(search_text) > 3:
+        for pattern in patterns:
+            if len(pattern) > 3:
+                for car in Car.objects.filter(
+                    Q(name__icontains=pattern) |
+                    Q(model__icontains=pattern) |
+                    Q(description__icontains=pattern) |
+                    Q(price__icontains=pattern) |
+                    Q(year__icontains=pattern)
+                ):
+                    if car not in cars:
+                        cars.append(car)
+
+    search = Search.objects.create(text=search_text, user=user)
+
+    return {'cars': cars, 'search_id': search.id}
+
+
+def paginated(text):
+    search_text = text
+    patterns = search_text.split(' ')
+    cars = []
+
+    if 50 > len(search_text) > 3:
+        for pattern in patterns:
+            if len(pattern) > 3:
+                for car in Car.objects.filter(
+                    Q(name__icontains=pattern) |
+                    Q(model__icontains=pattern) |
+                    Q(description__icontains=pattern) |
+                    Q(price__icontains=pattern) |
+                    Q(year__icontains=pattern)
+                ):
+                    if car not in cars:
+                        cars.append(car)
+
+    return cars
+
+
 def search_car(message, bot):
+    result = get_serach_result(
+        text=message.text, user_id=message.from_user.id)
+    cars = result['cars']
+    search_id = result['search_id']
+    search_text = message.text
+    print(cars)
+    if 2 >= len(cars) > 0:
+        for car in cars:
+            text = f"Nomi: {car.name},\nModeli: {car.model},\nIshlab chiqarilgan yil: {car.year},\nNarxi: {car.price},\nQo'shimcha malumot: \n{car.description},\n\nBog'lanish: {car.contact_number}"
+            media_group = [telebot.types.InputMediaPhoto(
+                media=car.images.first().image_link, caption=text)]
+            for photo in car.images.all()[1:]:
+                media_group.append(
+                    telebot.types.InputMediaPhoto(media=photo.image_link))
+
+            bot.send_media_group(
+                chat_id=message.from_user.id, media=media_group)
+    elif len(cars) > 2:
+        inline_kb = InlineKeyboardMarkup(row_width=5)
+        buttons = []
+        text = f"<strong>{search_text}</strong> so'rovi bo'yicha natijalar:\n{len(cars)} dan 1 - {10 if len(cars)>=10 else len(cars)}\n\n"
+        text += "<pre>"
+        text += "{:<3} {:<10} {:<6} {:<9}\n\n".format(
+            "No.", "Nomi", "Yili", "Narxi")
+        for count, car in enumerate(cars[:10]):
+            text += "{:<3} {:<10} {:<6} {:<9}$\n".format(
+                str(count+1)+".", car.name, car.year, car.price)
+            button = InlineKeyboardButton(
+                text=str(count+1), callback_data=f"retrieve_{car.id}")
+            buttons.append(button)
+
+        text += "</pre>"
+        inline_kb.add(*buttons)
+        inline_kb.add(InlineKeyboardButton(f'⬅', callback_data=f'prev {search_id}'),
+                      InlineKeyboardButton(
+                          f'❌', callback_data=f'del {search_id}'),
+                      InlineKeyboardButton(f'➡', callback_data=f'next {search_id}'))
+        bot.send_message(message.from_user.id, text,
+                         parse_mode='html', reply_markup=inline_kb)
+
+    else:
+        bot.send_message(message.from_user.id, text="So'rov bo'yicha xechqanday e'lon topilmadi",
+                         parse_mode='html')
     print('/'*88)

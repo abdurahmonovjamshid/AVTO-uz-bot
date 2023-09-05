@@ -18,6 +18,9 @@ env = Env()
 env.read_env()
 
 TELEGRAM_BOT_TOKEN = env.str('TELEGRAM_BOT_TOKEN')
+ADMINS = env.list('ADMINS')
+CHANNEL_ID = env.list('CHANNEL_ID')
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent

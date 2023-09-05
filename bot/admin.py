@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Car, CarImage, TgUser
+from .models import Car, CarImage, TgUser, Search
 
 
 class CarImageInline(admin.TabularInline):
@@ -20,4 +20,8 @@ class CarAdmin(admin.ModelAdmin):
 
 @admin.register(CarImage)
 class CarImageAdmin(admin.ModelAdmin):
+    pass
+
+@admin.register(Search)
+class SearchAdmin(admin.ModelAdmin):
     pass
