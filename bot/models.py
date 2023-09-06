@@ -31,7 +31,14 @@ class Car(models.Model):
 
     complate = models.BooleanField(default=False)
 
+    seen = models.ManyToManyField(TgUser, related_name='seen_cars')
+    likes = models.ManyToManyField(TgUser, related_name='liked_cars')
+    dislikes = models.ManyToManyField(TgUser, related_name='disliked_cars')
+
     delete = models.IntegerField(blank=True, null=True)
+
+    class Meta:
+        ordering = ['-created_at']
 
     def __str__(self):
         return f"{self.name} {self.model} ({self.year})"
@@ -55,4 +62,3 @@ class Search(models.Model):
 
     def __str__(self):
         return self.text
-    

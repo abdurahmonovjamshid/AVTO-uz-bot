@@ -11,7 +11,7 @@ from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup, InputFile
 from conf.settings import ADMINS, TELEGRAM_BOT_TOKEN
 
 from .buttons.default import cencel, main_button, main_menu
-from .buttons.inline import urlkb
+from .buttons.inline import create_social_btn, urlkb
 from .models import Car, Search, TgUser
 from .services.addcar import (add_car, add_description, add_model, add_number,
                               add_price, add_year, paginated, search_car)
@@ -75,7 +75,6 @@ def delete_car(call):
 
         if callback_data.startswith('del_'):
             car_id = callback_data.replace('del_', '')
-            print(car_id)
             if Car.objects.filter(id=car_id).exists():
                 Car.objects.filter(pk=car_id).delete()
                 bot.answer_callback_query(
@@ -112,7 +111,6 @@ def all_cars(message):
 
 @bot.message_handler(regexp='👨‍💻 Admin')
 def bot_echo(message):
-    print('/'*88)
     try:
         text = '''
 Admin bilan bog'lanish!
@@ -127,7 +125,6 @@ Admin bilan bog'lanish!
 def cencel_car(message):
     try:
         user = TgUser.objects.get(telegram_id=message.from_user.id)
-        print(user.step)
         if user.step == USER_STEP['SEARCH_CAR']:
             bot.send_message(chat_id=message.from_user.id, text="E\'lon qidirish bekor qilindi",
                              reply_markup=main_button, parse_mode='html')
@@ -147,7 +144,6 @@ def cencel_car(message):
 def cencel_car(message):
     try:
         user = TgUser.objects.get(telegram_id=message.from_user.id)
-        print(user.step)
         if user.step == USER_STEP['SEARCH_CAR']:
             bot.send_message(chat_id=message.from_user.id, text="E\'lon qidirish bekor qilindi",
                              reply_markup=main_button, parse_mode='html')
@@ -212,7 +208,11 @@ def cm_start(message):
             cars = user.car_set.filter(complate=True)
             for car in cars:
 
-                text = f"Nomi: {car.name},\nModeli: {car.model},\nIshlab chiqarilgan yil: {car.year},\nNarxi: {car.price},\nQo'shimcha malumot: \n{car.description},\n\nBog'lanish: {car.contact_number}"
+                text = f"Nomi: {car.name},\nModeli: {car.model},\nIshlab chiqarilgan yil: {car.year},\nNarxi: {car.price}$,\nQo'shimcha malumot: \n{car.description},\n\nBog'lanish: {car.contact_number}\n\n"
+                text += f"👁: {car.seen.count()}, "
+                text += f"👍: {car.likes.count()}, "
+                text += f"👎: {car.dislikes.count()}\n\n"
+                text += f"Joylandi: {car.created_at.strftime('%Y-%m-%d | %H:%M')}"
                 media_group = [telebot.types.InputMediaPhoto(
                     media=car.images.first().image_link, caption=text)]
                 for photo in car.images.all()[1:]:
@@ -224,7 +224,6 @@ def cm_start(message):
                 ids = ''
                 for a in msg:
                     ids += ','+str(a.id)
-                # print(ids, '\n')
                 bot.reply_to(message=msg[0], text="Ushbu e\'lonni o\'chirish", reply_markup=InlineKeyboardMarkup().add(
                     InlineKeyboardButton(text=f'O\'chirish', callback_data=f'del_{car.id}'+ids)))
         else:
@@ -276,7 +275,6 @@ def next_prev_calback(call):
         text += "<pre>"
         text += "{:<2} {:<11} {:<6} {:<9}\n\n".format(
             "No", "Nomi", "Yili", "Narxi")
-        print(cars[page*10-10: page*10])
         for count, car in enumerate(cars[page*10-10: page*10]):
             text += "{:<2} {:<11} {:<6} {:<9}$\n".format(
                 str(count+1)+".", car.name[:8]+'...' if len(car.name) > 11 else car.name, car.year, car.price)
@@ -301,10 +299,12 @@ def next_prev_calback(call):
 @bot.callback_query_handler(func=lambda call: call.data.startswith('remove '))
 def remove_message(call):
     try:
-        search_id = call.data.replace('remove ', '')
-        Search.objects.filter(pk=search_id).delete()
         bot.delete_message(chat_id=call.from_user.id,
                            message_id=call.message.id)
+        search_id = call.data.replace('remove ', '')
+        if search_id:
+            Search.objects.filter(pk=search_id).delete()
+
     except Exception as e:
         print(e)
 
@@ -315,8 +315,15 @@ def retrieve_car(call):
         bot.answer_callback_query(callback_query_id=call.id)
         car_id = call.data.replace('retrieve_', '')
         car = Car.objects.get(pk=car_id)
+        car.seen.add(TgUser.objects.get(telegram_id=call.from_user.id))
 
-        text = f"Nomi: {car.name},\nModeli: {car.model},\nIshlab chiqarilgan yil: {car.year},\nNarxi: {car.price},\nQo'shimcha malumot: \n{car.description},\n\nBog'lanish: {car.contact_number}"
+        text = f"Nomi: {car.name},\nModeli: {car.model},\nIshlab chiqarilgan yil: {car.year},\nNarxi: {car.price},\n"
+        text += f"Qo'shimcha malumot: \n{car.description},\n\n"
+        text += f"Bog'lanish: {car.contact_number}\n\n"
+        text += f"👁: {car.seen.count()}, "
+        text += f"👍: {car.likes.count()}, "
+        text += f"👎: {car.dislikes.count()}\n\n"
+        text += f"Joylandi: {car.created_at.strftime('%Y-%m-%d | %H:%M')}"
         media_group = [telebot.types.InputMediaPhoto(
             media=car.images.first().image_link, caption=text)]
         for photo in car.images.all()[1:]:
@@ -325,7 +332,72 @@ def retrieve_car(call):
 
         msg = bot.send_media_group(
             chat_id=call.from_user.id, media=media_group)
+
+        bot.reply_to(
+            message=msg[0], text="E'lon xaqida fikir bildirasizmi?", reply_markup=create_social_btn(car_id))
+
     except Exception as e:
+        print(e)
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('like_'))
+def retrieve_car(call):
+    try:
+        car_id = call.data.replace('like_', '')
+        car = Car.objects.get(pk=car_id)
+        user = TgUser.objects.get(telegram_id=call.from_user.id)
+        car.likes.add(user)
+        car.dislikes.remove(user)
+
+        # bot.delete_message(chat_id=call.from_user.id,
+        #                    message_id=call.message.id)
+
+        reply_to_message = call.message.reply_to_message
+        text = f"Nomi: {car.name},\nModeli: {car.model},\nIshlab chiqarilgan yil: {car.year},\nNarxi: {car.price},\n"
+        text += f"Qo'shimcha malumot: \n{car.description},\n\n"
+        text += f"Bog'lanish: {car.contact_number}\n\n"
+        text += f"👁: {car.seen.count()}, "
+        text += f"👍: {car.likes.count()}, "
+        text += f"👎: {car.dislikes.count()}\n\n"
+        text += f"Joylandi: {car.created_at.strftime('%Y-%m-%d | %H:%M')}"
+        bot.edit_message_caption(
+            chat_id=call.from_user.id, message_id=reply_to_message.id, caption=text)
+        bot.answer_callback_query(callback_query_id=call.id)
+
+    except Exception as e:
+        bot.answer_callback_query(
+            callback_query_id=call.id, text='You already liked', show_alert=True)
+        print(e)
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('dislike_'))
+def retrieve_car(call):
+    try:
+        car_id = call.data.replace('dislike_', '')
+        car = Car.objects.get(pk=car_id)
+        user = TgUser.objects.get(telegram_id=call.from_user.id)
+        car.dislikes.add(user)
+        car.likes.remove(user)
+
+        # bot.delete_message(chat_id=call.from_user.id,
+        #                    message_id=call.message.id)
+
+        reply_to_message = call.message.reply_to_message
+        text = f"Nomi: {car.name},\nModeli: {car.model},\nIshlab chiqarilgan yil: {car.year},\nNarxi: {car.price},\n"
+        text += f"Qo'shimcha malumot: \n{car.description},\n\n"
+        text += f"Bog'lanish: {car.contact_number}\n\n"
+        text += f"👁: {car.seen.count()}, "
+        text += f"👍: {car.likes.count()}, "
+        text += f"👎: {car.dislikes.count()}\n\n"
+        text += f"Joylandi: {car.created_at.strftime('%Y-%m-%d | %H:%M')}"
+        bot.edit_message_caption(
+            chat_id=call.from_user.id, message_id=reply_to_message.id, caption=text)
+        bot.answer_callback_query(callback_query_id=call.id)
+
+    except Exception as e:
+        bot.answer_callback_query(
+            callback_query_id=call.id, text='You already disliked', show_alert=True)
+
         print(e)
 
 

@@ -8,10 +8,11 @@ from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 from conf.settings import ADMINS, CHANNEL_ID
 
 from ..buttons.default import ask_phone, main_button, main_menu
+from ..buttons.inline import create_social_btn
 from ..models import Car, CarImage, Search, TgUser
 from ..services.steps import USER_STEP
 
-phone_number_pattern = r'^\+?\d{1,3}[-.\s]?\(?\d{1,3}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}$'
+phone_number_pattern = r'^(\+998|0)[1-9]\d{8}$'
 
 
 def is_phone_number(value):
@@ -79,7 +80,6 @@ def add_model(message, bot):
 def add_year(message, bot):
     try:
         current_year = timezone.now().year
-        print(current_year)
 
         if current_year >= int(message.text) >= 1999:
             year = message.text
@@ -184,7 +184,6 @@ def add_number(message, bot):
                 ids = ''
                 for a in msg:
                     ids += ','+str(a.id)
-                # print(ids, '\n')
                 bot.reply_to(message=msg[0], text="Ushbu e\'lonni o\'chirish", reply_markup=InlineKeyboardMarkup().add(
                     InlineKeyboardButton(text=f'O\'chirish', callback_data=f'del_{car.id}'+ids)))
 
@@ -192,10 +191,16 @@ def add_number(message, bot):
             bot.send_media_group(
                 chat_id=CHANNEL_ID, media=media_group)
 
+            # send to the owner
+            msg = bot.send_media_group(
+                chat_id=message.from_user.id, media=media_group)
+            bot.reply_to(message=msg[0], text="Ushbu e\'lonni o\'chirish", reply_markup=InlineKeyboardMarkup().add(
+                InlineKeyboardButton(text=f'O\'chirish', callback_data=f'del_{car.id}'+ids)))
+
     except Exception as e:
         print(e)
-        bot.send_message(
-            message.from_user.id, text='Iltimos telefon raqamini to\'g\'ri farmatda kiriting.', parse_mode='html')
+        # bot.send_message(
+        #     message.from_user.id, text='Iltimos telefon raqamini to\'g\'ri farmatda kiriting.', parse_mode='html')
 
 
 def get_serach_result(text, user_id):
@@ -259,22 +264,30 @@ def search_car(message, bot):
     cars = result['cars']
     search_id = result['search_id']
     search_text = message.text
-    print(cars)
     if 2 >= len(cars) > 0:
         TgUser.objects.filter(telegram_id=message.from_user.id).update(
             step=USER_STEP['DEFAULT'])
         bot.send_message(chat_id=message.from_user.id,
                          text='Natijalar', reply_markup=main_button)
         for car in cars:
-            text = f"Nomi: {car.name},\nModeli: {car.model},\nIshlab chiqarilgan yil: {car.year},\nNarxi: {car.price},\nQo'shimcha malumot: \n{car.description},\n\nBog'lanish: {car.contact_number}"
+            car.seen.add(TgUser.objects.get(telegram_id=message.from_user.id))
+            car_id = car.id
+            text = f"Nomi: {car.name},\nModeli: {car.model},\nIshlab chiqarilgan yil: {car.year},\nNarxi: {car.price},\nQo'shimcha malumot: \n{car.description},\n\nBog'lanish: {car.contact_number}\n\n"
+            text += f"👁: {car.seen.count()}, "
+            text += f"👍: {car.likes.count()}, "
+            text += f"👎: {car.dislikes.count()}\n\n"
+            text += f"Joylandi: {car.created_at.strftime('%Y-%m-%d | %H:%M')}"
             media_group = [telebot.types.InputMediaPhoto(
                 media=car.images.first().image_link, caption=text)]
             for photo in car.images.all()[1:]:
                 media_group.append(
                     telebot.types.InputMediaPhoto(media=photo.image_link))
 
-            bot.send_media_group(
+            msg = bot.send_media_group(
                 chat_id=message.from_user.id, media=media_group)
+
+            bot.reply_to(
+                message=msg[0], text="E'lon xaqida fikir bildirasizmi?", reply_markup=create_social_btn(car_id))
     elif len(cars) > 2:
         TgUser.objects.filter(telegram_id=message.from_user.id).update(
             step=USER_STEP['DEFAULT'])
@@ -306,4 +319,3 @@ def search_car(message, bot):
     else:
         bot.send_message(message.from_user.id, text="So'rov bo'yicha xechqanday e'lon topilmadi",
                          parse_mode='html', reply_markup=main_menu)
-    print('/'*88)
