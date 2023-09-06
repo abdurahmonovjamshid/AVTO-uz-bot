@@ -4,6 +4,7 @@ import traceback
 
 import telebot
 from django.http import HttpResponse
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup, InputFile
 
@@ -101,6 +102,14 @@ def start_handler(message):
         print(e)
 
 
+@bot.message_handler(commands=['all'])
+def all_cars(message):
+    try:
+        search_car(message=message, bot=bot)
+    except Exception as e:
+        print(e)
+
+
 @bot.message_handler(regexp='👨‍💻 Admin')
 def bot_echo(message):
     print('/'*88)
@@ -153,10 +162,11 @@ def cm_start(message):
 @bot.message_handler(regexp="📊 Statistika")
 def statistics(message):
     try:
+        today = timezone.localdate()
         all_users = TgUser.objects.all().count()
         all_cars = Car.objects.all().count()
         bot.send_message(chat_id=message.from_user.id,
-                         text=f"📊 Statistika\n\n<strong>👥 Bot foydalanuvchilari</strong>: <code>{all_users}</code>,\n       ------\n<strong>🧾 Joylangan e'lonlar</strong>: <code>{all_cars}</code>.", parse_mode='html')
+                         text=f"📊 Statistika ({today})\n\n<strong>👥 Bot foydalanuvchilari</strong>: <code>{all_users}</code>,\n       ------\n<strong>🧾 Joylangan e'lonlar</strong>: <code>{all_cars}</code>.", parse_mode='html')
     except Exception as e:
         print(e)
 
@@ -244,12 +254,12 @@ def next_prev_calback(call):
         buttons = []
         text = f"<strong>{text}</strong> so'rovi bo'yicha natijalar:\n{len(cars)} dan {page*10-9} - {page*10 if len(cars)>=page*10 else len(cars)}\n\n"
         text += "<pre>"
-        text += "{:<3} {:<10} {:<6} {:<9}\n\n".format(
-            "No.", "Nomi", "Yili", "Narxi")
+        text += "{:<2} {:<11} {:<6} {:<9}\n\n".format(
+            "No", "Nomi", "Yili", "Narxi")
         print(cars[page*10-10: page*10])
         for count, car in enumerate(cars[page*10-10: page*10]):
-            text += "{:<3} {:<10} {:<6} {:<9}$\n".format(
-                str(count+1)+".", car.name, car.year, car.price)
+            text += "{:<2} {:<11} {:<6} {:<9}$\n".format(
+                str(count+1)+".", car.name[:8]+'...' if len(car.name) > 11 else car.name, car.year, car.price)
             button = InlineKeyboardButton(
                 text=str(count+1), callback_data=f"retrieve_{car.id}")
             buttons.append(button)
@@ -258,12 +268,43 @@ def next_prev_calback(call):
         inline_kb.add(*buttons)
         inline_kb.add(InlineKeyboardButton(f'⬅', callback_data=f'prev {search_id}'),
                       InlineKeyboardButton(
-                          f'❌', callback_data=f'del {search_id}'),
+                          f'❌', callback_data=f'remove {search_id}'),
                       InlineKeyboardButton(f'➡', callback_data=f'next {search_id}'))
 
         bot.edit_message_text(chat_id=call.message.chat.id,
                               message_id=call.message.message_id,
                               text=text, parse_mode='html', reply_markup=inline_kb)
+    except Exception as e:
+        print(e)
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('remove '))
+def remove_message(call):
+    try:
+        search_id = call.data.replace('remove ', '')
+        Search.objects.filter(pk=search_id).delete()
+        bot.delete_message(chat_id=call.from_user.id,
+                           message_id=call.message.id)
+    except Exception as e:
+        print(e)
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('retrieve_'))
+def retrieve_car(call):
+    try:
+        bot.answer_callback_query(callback_query_id=call.id)
+        car_id = call.data.replace('retrieve_', '')
+        car = Car.objects.get(pk=car_id)
+
+        text = f"Nomi: {car.name},\nModeli: {car.model},\nIshlab chiqarilgan yil: {car.year},\nNarxi: {car.price},\nQo'shimcha malumot: \n{car.description},\n\nBog'lanish: {car.contact_number}"
+        media_group = [telebot.types.InputMediaPhoto(
+            media=car.images.first().image_link, caption=text)]
+        for photo in car.images.all()[1:]:
+            media_group.append(
+                telebot.types.InputMediaPhoto(media=photo.image_link))
+
+        msg = bot.send_media_group(
+            chat_id=call.from_user.id, media=media_group)
     except Exception as e:
         print(e)
 
@@ -281,10 +322,8 @@ def text_handler(message):
             USER_STEP['SEARCH_CAR']: search_car,
 
         }
-        print(TgUser.objects.get(telegram_id=message.chat.id).step)
         func = switcher.get(TgUser.objects.get(
             telegram_id=message.chat.id).step)
-        # print(func)
         if func:
             func(message, bot)
         else:

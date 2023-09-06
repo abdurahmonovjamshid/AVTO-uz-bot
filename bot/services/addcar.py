@@ -2,6 +2,7 @@ import re
 
 import telebot
 from django.db.models import Q
+from django.utils import timezone
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from conf.settings import ADMINS, CHANNEL_ID
@@ -26,10 +27,11 @@ def add_car(message, bot):
         car, created = Car.objects.get_or_create(owner=user, complate=False)
         if message.photo:
             user = TgUser.objects.get(telegram_id=message.from_user.id)
+
             CarImage.objects.create(
                 car=car, image_link=message.photo[-1].file_id)
 
-            if not created:
+            if car.delete:
                 bot.delete_message(
                     chat_id=message.from_user.id, message_id=car.delete)
 
@@ -39,7 +41,7 @@ def add_car(message, bot):
             car.delete = msg.id
             car.save()
         elif message.text and car.images.exists():
-            if len(message.text) >= 5:
+            if 50 > len(message.text) >= 5:
                 car.name = message.text.capitalize()
                 car.save()
                 bot.send_message(
@@ -58,19 +60,26 @@ def add_car(message, bot):
 
 def add_model(message, bot):
     model = message.text.capitalize()
-    user = TgUser.objects.get(telegram_id=message.from_user.id)
-    car = Car.objects.get(owner=user, complate=False)
-    car.model = model
-    car.save()
-    user.step = USER_STEP['ADD_YEAR']
-    user.save()
-    bot.send_message(message.from_user.id,
-                     text='Mashina ishlab chiqarilgan yilni kiriting', parse_mode='html')
+    if 50 > len(model) >= 5:
+        user = TgUser.objects.get(telegram_id=message.from_user.id)
+        car = Car.objects.get(owner=user, complate=False)
+        car.model = model
+        car.save()
+        user.step = USER_STEP['ADD_YEAR']
+        user.save()
+        bot.send_message(message.from_user.id,
+                         text='Mashina ishlab chiqarilgan yilni kiriting.', parse_mode='html')
+    else:
+        bot.send_message(message.from_user.id,
+                         text='Mashina modeli qabul qilinmadi.\nQayta kiriting.', parse_mode='html')
 
 
 def add_year(message, bot):
     try:
-        if 2024 >= int(message.text) >= 1999:
+        current_year = timezone.now().year
+        print(current_year)
+
+        if current_year >= int(message.text) >= 1999:
             year = message.text
             user = TgUser.objects.get(telegram_id=message.from_user.id)
             car = Car.objects.get(owner=user, complate=False)
@@ -79,11 +88,12 @@ def add_year(message, bot):
             user.step = USER_STEP['ADD_PRICE']
             user.save()
             bot.send_message(message.from_user.id,
-                             text='Mashina narxini kiriting', parse_mode='html')
+                             text='💰 Mashina narxini kiriting! ($$$)', parse_mode='html')
         else:
             bot.send_message(
                 message.from_user.id, text='Mashina ishlab chiqarilgan yilni qabul qilinmadi.\nQayta kiriting', parse_mode='html')
-    except:
+    except Exception as e:
+        print(e)
         bot.send_message(
             message.from_user.id, text='Mashina ishlab chiqarilgan yil qabul qilinmadi.\nQayta kiriting', parse_mode='html')
 
@@ -91,15 +101,19 @@ def add_year(message, bot):
 def add_price(message, bot):
     try:
         price = message.text
-        user = TgUser.objects.get(telegram_id=message.from_user.id)
-        car = Car.objects.get(owner=user, complate=False)
-        car.price = price
-        car.save()
-        user.step = USER_STEP['ADD_DESCRIPTION']
-        user.save()
-        bot.send_message(
-            message.from_user.id, text='Mashina haqida to\'liq ma\'lumot kiriting', parse_mode='html')
-    except:
+        if float(price):
+            price = float(price)
+            if 9000000000.0 > price > 0.0:
+                user = TgUser.objects.get(telegram_id=message.from_user.id)
+                car = Car.objects.get(owner=user, complate=False)
+                car.price = price
+                car.save()
+                user.step = USER_STEP['ADD_DESCRIPTION']
+                user.save()
+                bot.send_message(
+                    message.from_user.id, text='📝 Mashina haqida to\'liq ma\'lumot kiriting', parse_mode='html')
+    except Exception as e:
+        print(e)
         bot.send_message(
             message.from_user.id, text='Mashina narxi qabul qilinmadi.\nQayta kiriting', parse_mode='html')
 
@@ -188,7 +202,11 @@ def get_serach_result(text, user_id):
 
     patterns = search_text.split(' ')
     cars = []
-    if 50 > len(search_text) > 3:
+    if search_text == '/all':
+        for car in Car.objects.all():
+            if car not in cars:
+                cars.append(car)
+    elif 50 > len(search_text) > 3:
         for pattern in patterns:
             if len(pattern) > 3:
                 for car in Car.objects.filter(
@@ -210,8 +228,11 @@ def paginated(text):
     search_text = text
     patterns = search_text.split(' ')
     cars = []
-
-    if 50 > len(search_text) > 3:
+    if search_text == '/all':
+        for car in Car.objects.all():
+            if car not in cars:
+                cars.append(car)
+    elif 50 > len(search_text) > 3:
         for pattern in patterns:
             if len(pattern) > 3:
                 for car in Car.objects.filter(
@@ -250,11 +271,12 @@ def search_car(message, bot):
         buttons = []
         text = f"<strong>{search_text}</strong> so'rovi bo'yicha natijalar:\n{len(cars)} dan 1 - {10 if len(cars)>=10 else len(cars)}\n\n"
         text += "<pre>"
-        text += "{:<3} {:<10} {:<6} {:<9}\n\n".format(
-            "No.", "Nomi", "Yili", "Narxi")
+        text += "{:<2} {:<11} {:<6} {:<9}\n\n".format(
+            "No", "Nomi", "Yili", "Narxi")
         for count, car in enumerate(cars[:10]):
-            text += "{:<3} {:<10} {:<6} {:<9}$\n".format(
-                str(count+1)+".", car.name, car.year, car.price)
+            print(car.name[:10])
+            text += "{:<2} {:<11} {:<6} {:<9}$\n".format(
+                str(count+1)+".", car.name[:8]+'...' if len(car.name) > 11 else car.name, car.year, car.price)
             button = InlineKeyboardButton(
                 text=str(count+1), callback_data=f"retrieve_{car.id}")
             buttons.append(button)
@@ -263,7 +285,7 @@ def search_car(message, bot):
         inline_kb.add(*buttons)
         inline_kb.add(InlineKeyboardButton(f'⬅', callback_data=f'prev {search_id}'),
                       InlineKeyboardButton(
-                          f'❌', callback_data=f'del {search_id}'),
+                          f'❌', callback_data=f'remove {search_id}'),
                       InlineKeyboardButton(f'➡', callback_data=f'next {search_id}'))
         bot.send_message(message.from_user.id, text,
                          parse_mode='html', reply_markup=inline_kb)
