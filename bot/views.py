@@ -2,7 +2,9 @@
 import json
 import traceback
 
+import requests
 import telebot
+import telegraph
 from django.http import HttpResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt

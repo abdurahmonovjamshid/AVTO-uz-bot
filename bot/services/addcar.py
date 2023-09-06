@@ -11,6 +11,7 @@ from ..buttons.default import ask_phone, main_button, main_menu
 from ..buttons.inline import create_social_btn
 from ..models import Car, CarImage, Search, TgUser
 from ..services.steps import USER_STEP
+from ..utils.post_car_photo import post_photo_to_telegraph
 from ..utils.search import search_cars
 
 phone_number_pattern = r'^(\+998|0)[1-9]\d{8}$'
@@ -27,11 +28,18 @@ def add_car(message, bot):
     try:
         user = TgUser.objects.get(telegram_id=message.from_user.id)
         if message.photo:
+
+            photo_info = bot.get_file(message.photo[-1].file_id)
+
+            photo = bot.download_file(photo_info.file_path)
+
+            photo_post_link = post_photo_to_telegraph(photo)
+
             car, created = Car.objects.get_or_create(
                 owner=user, complate=False)
             if car.images.count() < 6:
                 CarImage.objects.create(
-                    car=car, image_link=message.photo[-1].file_id)
+                    car=car, image_link=message.photo[-1].file_id, telegraph=photo_post_link)
 
             if car.delete or not created:
                 bot.delete_message(
@@ -211,7 +219,7 @@ def get_serach_result(text, user_id):
     patterns = search_text.split(' ')
     cars = []
     if search_text == '/all':
-        for car in Car.objects.filter(complate=True):
+        for car in Car.objects.filter(complate=True).order_by('-created_at'):
             if car not in cars:
                 cars.append(car)
     elif 50 > len(search_text) > 3:
@@ -234,7 +242,7 @@ def paginated(text):
     patterns = search_text.split(' ')
     cars = []
     if search_text == '/all':
-        for car in Car.objects.filter(complate=True):
+        for car in Car.objects.filter(complate=True).order_by('-created_at'):
             if car not in cars:
                 cars.append(car)
     elif 50 > len(search_text) > 3:

@@ -43,11 +43,18 @@ class Car(models.Model):
     def __str__(self):
         return f"{self.name} {self.model} ({self.year})"
 
+    # @property
+    # def seen_count(self):
+    #     return self.seen.count()
+
 
 class CarImage(models.Model):
     car = models.ForeignKey(
         Car, on_delete=models.CASCADE, related_name='images')
     image_link = models.CharField(max_length=100)
+
+    telegraph = models.URLField(
+        default='https://telegra.ph/file/a2c29a823fb22433af042.jpg')
 
     def __str__(self):
         return f"Image for {self.car.name} {self.car.model} ({self.car.year})"
