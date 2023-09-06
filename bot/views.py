@@ -104,7 +104,11 @@ def start_handler(message):
 @bot.message_handler(commands=['all'])
 def all_cars(message):
     try:
-        search_car(message=message, bot=bot)
+        print(ADMINS)
+        if str(message.from_user.id) in ADMINS:
+            search_car(message=message, bot=bot)
+        else:
+            start_handler(message)
     except Exception as e:
         print(e)
 

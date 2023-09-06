@@ -37,8 +37,8 @@ class Car(models.Model):
 
     delete = models.IntegerField(blank=True, null=True)
 
-    class Meta:
-        ordering = ['-created_at']
+    # class Meta:
+    #     ordering = ['-created_at']
 
     def __str__(self):
         return f"{self.name} {self.model} ({self.year})"

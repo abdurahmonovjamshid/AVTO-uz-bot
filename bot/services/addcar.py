@@ -11,6 +11,7 @@ from ..buttons.default import ask_phone, main_button, main_menu
 from ..buttons.inline import create_social_btn
 from ..models import Car, CarImage, Search, TgUser
 from ..services.steps import USER_STEP
+from ..utils.search import search_cars
 
 phone_number_pattern = r'^(\+998|0)[1-9]\d{8}$'
 
@@ -216,13 +217,7 @@ def get_serach_result(text, user_id):
     elif 50 > len(search_text) > 3:
         for pattern in patterns:
             if len(pattern) > 3:
-                for car in Car.objects.filter(
-                    Q(name__icontains=pattern) |
-                    Q(model__icontains=pattern) |
-                    Q(description__icontains=pattern) |
-                    Q(price__icontains=pattern) |
-                    Q(year__icontains=pattern)
-                ):
+                for car in search_cars(search_text=pattern):
                     if car not in cars:
                         cars.append(car)
     if len(cars) > 2:
@@ -245,13 +240,7 @@ def paginated(text):
     elif 50 > len(search_text) > 3:
         for pattern in patterns:
             if len(pattern) > 3:
-                for car in Car.objects.filter(
-                    Q(name__icontains=pattern) |
-                    Q(model__icontains=pattern) |
-                    Q(description__icontains=pattern) |
-                    Q(price__icontains=pattern) |
-                    Q(year__icontains=pattern)
-                ):
+                for car in search_cars(search_text=pattern):
                     if car not in cars:
                         cars.append(car)
 
