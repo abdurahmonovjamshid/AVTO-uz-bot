@@ -7,7 +7,7 @@ from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from conf.settings import ADMINS, CHANNEL_ID
 
-from ..buttons.default import ask_phone, main_button
+from ..buttons.default import ask_phone, main_button, main_menu
 from ..models import Car, CarImage, Search, TgUser
 from ..services.steps import USER_STEP
 
@@ -24,14 +24,14 @@ def is_phone_number(value):
 def add_car(message, bot):
     try:
         user = TgUser.objects.get(telegram_id=message.from_user.id)
-        car, created = Car.objects.get_or_create(owner=user, complate=False)
         if message.photo:
-            user = TgUser.objects.get(telegram_id=message.from_user.id)
+            car, created = Car.objects.get_or_create(
+                owner=user, complate=False)
+            if car.images.count() < 6:
+                CarImage.objects.create(
+                    car=car, image_link=message.photo[-1].file_id)
 
-            CarImage.objects.create(
-                car=car, image_link=message.photo[-1].file_id)
-
-            if car.delete:
+            if car.delete or not created:
                 bot.delete_message(
                     chat_id=message.from_user.id, message_id=car.delete)
 
@@ -40,8 +40,9 @@ def add_car(message, bot):
 
             car.delete = msg.id
             car.save()
-        elif message.text and car.images.exists():
+        elif message.text and user.car_set.filter(complate=False).exists():
             if 50 > len(message.text) >= 5:
+                car = user.car_set.get(complate=False)
                 car.name = message.text.capitalize()
                 car.save()
                 bot.send_message(
@@ -54,7 +55,8 @@ def add_car(message, bot):
         else:
             bot.send_message(
                 message.from_user.id, text='Iltimos! 2 tadan 6 tagacha Mashinangiz rasmini joylang!')
-    except:
+    except Exception as e:
+        print(e)
         pass
 
 
@@ -203,7 +205,7 @@ def get_serach_result(text, user_id):
     patterns = search_text.split(' ')
     cars = []
     if search_text == '/all':
-        for car in Car.objects.all():
+        for car in Car.objects.filter(complate=True):
             if car not in cars:
                 cars.append(car)
     elif 50 > len(search_text) > 3:
@@ -218,10 +220,13 @@ def get_serach_result(text, user_id):
                 ):
                     if car not in cars:
                         cars.append(car)
+    if len(cars) > 2:
+        search = Search.objects.create(text=search_text, user=user)
+        search_id = search.id
+    else:
+        search_id = 0
 
-    search = Search.objects.create(text=search_text, user=user)
-
-    return {'cars': cars, 'search_id': search.id}
+    return {'cars': cars, 'search_id': search_id}
 
 
 def paginated(text):
@@ -229,7 +234,7 @@ def paginated(text):
     patterns = search_text.split(' ')
     cars = []
     if search_text == '/all':
-        for car in Car.objects.all():
+        for car in Car.objects.filter(complate=True):
             if car not in cars:
                 cars.append(car)
     elif 50 > len(search_text) > 3:
@@ -256,6 +261,10 @@ def search_car(message, bot):
     search_text = message.text
     print(cars)
     if 2 >= len(cars) > 0:
+        TgUser.objects.filter(telegram_id=message.from_user.id).update(
+            step=USER_STEP['DEFAULT'])
+        bot.send_message(chat_id=message.from_user.id,
+                         text='Natijalar', reply_markup=main_button)
         for car in cars:
             text = f"Nomi: {car.name},\nModeli: {car.model},\nIshlab chiqarilgan yil: {car.year},\nNarxi: {car.price},\nQo'shimcha malumot: \n{car.description},\n\nBog'lanish: {car.contact_number}"
             media_group = [telebot.types.InputMediaPhoto(
@@ -267,6 +276,10 @@ def search_car(message, bot):
             bot.send_media_group(
                 chat_id=message.from_user.id, media=media_group)
     elif len(cars) > 2:
+        TgUser.objects.filter(telegram_id=message.from_user.id).update(
+            step=USER_STEP['DEFAULT'])
+        bot.send_message(chat_id=message.from_user.id,
+                         text='Natijalar', reply_markup=main_button)
         inline_kb = InlineKeyboardMarkup(row_width=5)
         buttons = []
         text = f"<strong>{search_text}</strong> so'rovi bo'yicha natijalar:\n{len(cars)} dan 1 - {10 if len(cars)>=10 else len(cars)}\n\n"
@@ -292,5 +305,5 @@ def search_car(message, bot):
 
     else:
         bot.send_message(message.from_user.id, text="So'rov bo'yicha xechqanday e'lon topilmadi",
-                         parse_mode='html')
+                         parse_mode='html', reply_markup=main_menu)
     print('/'*88)

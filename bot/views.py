@@ -10,7 +10,7 @@ from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup, InputFile
 
 from conf.settings import ADMINS, TELEGRAM_BOT_TOKEN
 
-from .buttons.default import cencel, main_button
+from .buttons.default import cencel, main_button, main_menu
 from .buttons.inline import urlkb
 from .models import Car, Search, TgUser
 from .services.addcar import (add_car, add_description, add_model, add_number,
@@ -143,6 +143,26 @@ def cencel_car(message):
         print(e)
 
 
+@bot.message_handler(regexp='🏠 Bosh sahifa')
+def cencel_car(message):
+    try:
+        user = TgUser.objects.get(telegram_id=message.from_user.id)
+        print(user.step)
+        if user.step == USER_STEP['SEARCH_CAR']:
+            bot.send_message(chat_id=message.from_user.id, text="E\'lon qidirish bekor qilindi",
+                             reply_markup=main_button, parse_mode='html')
+            user.step = USER_STEP['DEFAULT']
+            user.save()
+        else:
+            user.car_set.filter(complate=False).delete()
+            user.step = USER_STEP['DEFAULT']
+            user.save()
+            bot.send_message(chat_id=message.from_user.id, text="E\'lon joylash bekor qilindi",
+                             reply_markup=main_button, parse_mode='html')
+    except Exception as e:
+        print(e)
+
+
 @bot.message_handler(regexp="📝 E'lon joylash")
 def cm_start(message):
     try:
@@ -177,7 +197,7 @@ def start_search_car(message):
         TgUser.objects.filter(telegram_id=message.from_user.id).update(
             step=USER_STEP['SEARCH_CAR'])
         bot.send_message(chat_id=message.from_user.id,
-                         text="Joylangan e'lonlarni qidirish uchun mashina malumotlarini kiriting", reply_markup=cencel)
+                         text="Joylangan e'lonlarni qidirish uchun mashina malumotlarini kiriting", reply_markup=main_menu)
 
     except Exception as e:
         print(e)
@@ -241,7 +261,7 @@ def next_prev_calback(call):
 
             cars = paginated(text=text)
 
-            if len(cars) >= search.currnet_page*10:
+            if len(cars) > search.currnet_page*10:
                 search.currnet_page += 1
                 search.save()
                 page = search.currnet_page
