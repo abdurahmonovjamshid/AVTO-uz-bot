@@ -1,7 +1,7 @@
 import requests
 
 
-def post_photo_to_telegraph(photo):
+def post_photo_to_telegraph(car_image, photo):
     response = requests.post("https://telegra.ph/upload",
                              files={"file": photo})
     if response.status_code == 200:
@@ -10,4 +10,7 @@ def post_photo_to_telegraph(photo):
     else:
         photo_post_link = None
 
-    return photo_post_link
+    car_image.telegraph = photo_post_link
+    car_image.save()
+
+    # return photo_post_link

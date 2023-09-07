@@ -6,16 +6,21 @@ class TgUser(models.Model):
     first_name = models.CharField(max_length=255)
     last_name = models.CharField(max_length=255, blank=True, null=True)
     username = models.CharField(max_length=255, blank=True, null=True)
+    phone = models.CharField(max_length=15, default='-')
+
     is_bot = models.BooleanField(default=False)
     language_code = models.CharField(max_length=10, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Joined')
 
     step = models.IntegerField(default=0)
 
     deleted = models.BooleanField(default=False)
 
     def __str__(self):
-        return f'{self.first_name} {self.last_name}'
+        if self.last_name:
+            return f'{self.first_name} {self.last_name}'
+        else:
+            return f'{self.first_name}'
 
 
 class Car(models.Model):
@@ -30,6 +35,7 @@ class Car(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     complate = models.BooleanField(default=False)
+    post = models.BooleanField(default=False)
 
     seen = models.ManyToManyField(TgUser, related_name='seen_cars')
     likes = models.ManyToManyField(TgUser, related_name='liked_cars')
@@ -37,8 +43,8 @@ class Car(models.Model):
 
     delete = models.IntegerField(blank=True, null=True)
 
-    # class Meta:
-    #     ordering = ['-created_at']
+    class Meta:
+        ordering = ['-created_at']
 
     def __str__(self):
         return f"{self.name} {self.model} ({self.year})"

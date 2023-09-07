@@ -8,37 +8,46 @@ from .models import Car, CarImage, Search, TgUser
 
 @admin.register(Car)
 class CarAdmin(admin.ModelAdmin):
-    list_display = ('__str__',
-                    'seen_count', 'likes_count', 'dislikes_count', 'created_at')
-
-    readonly_fields = ('seen_count', 'likes_count', 'dislikes_count')
-
-    list_filter = ('model', 'year')
-    search_fields = ('name', 'model', 'year', 'description', 'price')
+    list_display = ('__str__', 'post', 'seen_count',
+                    'likes_count', 'dislikes_count', 'created_at')
+    list_filter = ('post', 'model', 'year')
+    readonly_fields = ('created_at', 'seen_count',
+                       'likes_count', 'dislikes_count', 'owner', 'description', 'year', 'price', 'model', 'name', 'contact_number', 'complate')
+    ordering = ('-created_at', 'name')
+    actions = ['mark_as_posted', 'mark_as_not_posted']
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
-        queryset = queryset.annotate(
-            seen_count=Count('seen'),
-            likes_count=Count('likes'),
-            dislikes_count=Count('dislikes')
-        )
+        queryset = queryset.annotate(seen_count=Count('seen'))
+        queryset = queryset.annotate(likes_count=Count('likes'))
+        queryset = queryset.annotate(dislikes_count=Count('dislikes'))
         return queryset
 
     def seen_count(self, obj):
-        return obj.seen_count
+        return obj.seen.count()
     seen_count.admin_order_field = 'seen_count'
     seen_count.short_description = 'Seen Count'
 
     def likes_count(self, obj):
         return obj.likes.count()
-    likes_count.short_description = 'Likes Count'
     likes_count.admin_order_field = 'likes_count'
+    likes_count.short_description = 'Likes Count'
 
     def dislikes_count(self, obj):
         return obj.dislikes.count()
-    dislikes_count.short_description = 'Dislikes Count'
     dislikes_count.admin_order_field = 'dislikes_count'
+    dislikes_count.short_description = 'Dislikes Count'
+
+    def mark_as_posted(self, request, queryset):
+        rows_updated = queryset.update(post=True)
+        self.message_user(request, f"{rows_updated} car(s) marked as posted.")
+    mark_as_posted.short_description = "Mark selected cars as posted"
+
+    def mark_as_not_posted(self, request, queryset):
+        rows_updated = queryset.update(post=False)
+        self.message_user(
+            request, f"{rows_updated} car(s) marked as not posted.")
+    mark_as_not_posted.short_description = "Mark selected cars as not posted"
 
     change_form_template = 'admin/car_change_form.html'
 
@@ -55,21 +64,15 @@ class CarAdmin(admin.ModelAdmin):
             'fields': ('description', 'contact_number', 'created_at')
         }),
         ('Status', {
-            'fields': ('complate',)
+            'fields': ('complate', 'post', 'seen_count', 'likes_count', 'dislikes_count')
         })
     )
-
-    def has_change_permission(self, *args, **kwargs):
-        return False
-
-    def has_add_permission(self, *args, **kwargs):
-        return False
 
 
 @admin.register(TgUser)
 class TgUserAdmin(admin.ModelAdmin):
 
-    list_display = ('__str__', 'car_count')
+    list_display = ('__str__', 'phone', 'car_count', 'created_at')
     readonly_fields = ('car_count',)
 
     actions = ['sort_by_car_count']
@@ -93,13 +96,10 @@ class TgUserAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ("User Information", {
-            'fields': ('telegram_id', 'first_name', 'last_name', 'username'),
-        }),
-        ('Bot Information', {
-            'fields': ('is_bot', 'language_code'),
+            'fields': ('telegram_id', 'first_name', 'last_name', 'phone', 'username'),
         }),
         ('Additional Information', {
-            'fields': ('created_at', 'step', 'deleted'),
+            'fields': ('created_at', 'car_count', 'step', 'deleted'),
         }),
     )
 

@@ -5,7 +5,7 @@ from ..models import Car
 
 
 def search_cars(search_text):
-    cars = Car.objects.filter(complate=True)
+    cars = Car.objects.filter(complate=True, post=True).order_by('-created_at')
 
     results = []
     for car in cars:
@@ -18,10 +18,10 @@ def search_cars(search_text):
         year_similarity = fuzz.token_sort_ratio(search_text, car.year)
 
         if (
-            name_similarity >= 50 or
-            model_similarity >= 50 or
-            description_similarity >= 50 or
-            contact_number_similarity >= 50 or
+            name_similarity >= 70 or
+            model_similarity >= 70 or
+            description_similarity >= 70 or
+            contact_number_similarity >= 90 or
             # price_similarity >= 50 or
             year_similarity >= 90
         ):

@@ -10,7 +10,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup, InputFile
 
-from conf.settings import ADMINS, TELEGRAM_BOT_TOKEN
+from conf.settings import ADMINS, CHANNEL_ID, TELEGRAM_BOT_TOKEN
 
 from .buttons.default import cencel, main_button, main_menu
 from .buttons.inline import create_social_btn, urlkb
@@ -81,6 +81,7 @@ def delete_car(call):
                 Car.objects.filter(pk=car_id).delete()
                 bot.answer_callback_query(
                     callback_query_id=call.id, text='E\'lon o\'chirildi', show_alert=True)
+
             else:
                 bot.answer_callback_query(
                     callback_query_id=call.id, text='E\'lon avval o\'chirilgan', show_alert=True)
@@ -173,10 +174,10 @@ def cm_start(message):
             TgUser.objects.filter(telegram_id=message.from_user.id).update(
                 step=USER_STEP['ADD_CAR'])
             bot.send_message(
-                message.from_user.id, text='2 tadan 6 tagacha Mashinangiz rasmini joylang!', reply_markup=cencel)
+                message.from_user.id, text='📷 <b>2</b> tadan <b>6</b> tagacha Mashinangiz rasmini joylang!', reply_markup=cencel, parse_mode='html')
         else:
             bot.send_message(chat_id=message.from_user.id,
-                             text="Sizda faol e'lonlar soni ko'p")
+                             text="🚫 Sizda faol e'lonlar soni ko'p")
     except Exception as e:
         print(e)
 
@@ -218,7 +219,8 @@ def cm_start(message):
                 text += f"👁: {car.seen.count()}, "
                 text += f"👍: {car.likes.count()}, "
                 text += f"👎: {car.dislikes.count()}\n\n"
-                text += f"Joylandi: {car.created_at.strftime('%Y-%m-%d | %H:%M')}"
+                text += f"📤 Joylandi: {car.created_at.strftime('%Y-%m-%d | %H:%M')}\n"
+                text += f"Holati: {'✅ Faol' if car.post else '❗️ Nofaol'}"
                 media_group = [telebot.types.InputMediaPhoto(
                     media=car.images.first().image_link, caption=text)]
                 for photo in car.images.all()[1:]:
@@ -315,6 +317,47 @@ def remove_message(call):
         print(e)
 
 
+@bot.callback_query_handler(func=lambda call: call.data.startswith('post_'))
+def remove_message(call):
+    try:
+        if str(call.from_user.id) in ADMINS:
+            callback_data = call.data.split(',')[0]
+
+            messages = call.data.split(',')[1:]
+            for message in messages:
+                bot.delete_message(
+                    chat_id=call.from_user.id, message_id=message)
+            bot.delete_message(chat_id=call.from_user.id,
+                               message_id=call.message.id)
+
+            car_id = callback_data.replace('post_', '')
+            if Car.objects.filter(pk=car_id).exists():
+                car = Car.objects.get(pk=car_id)
+                car.post = True
+                car.save()
+                bot.send_message(chat_id=car.owner.telegram_id,
+                                 text=f"<b>{car}</b> e'loningiz faollashtirildi!", parse_mode='html')
+
+                text = f"Nomi: {car.name},\nModeli: {car.model},\nIshlab chiqarilgan yil: {car.year},\nNarxi: {car.price},\nQo'shimcha malumot: \n{car.description},\n\nBog'lanish: {car.contact_number}"
+                media_group = [telebot.types.InputMediaPhoto(
+                    media=car.images.first().image_link, caption=text)]
+                for photo in car.images.all()[1:]:
+                    media_group.append(
+                        telebot.types.InputMediaPhoto(media=photo.image_link))
+
+                bot.send_media_group(
+                    chat_id=CHANNEL_ID, media=media_group)
+
+                bot.answer_callback_query(
+                    callback_query_id=call.id, text="E'lon faollashtirildi!", show_alert=True)
+            else:
+                bot.answer_callback_query(
+                    callback_query_id=call.id, text="E'lon o'chirilgan!", show_alert=True)
+
+    except Exception as e:
+        print(e)
+
+
 @bot.callback_query_handler(func=lambda call: call.data.startswith('retrieve_'))
 def retrieve_car(call):
     try:
@@ -330,6 +373,10 @@ def retrieve_car(call):
         text += f"👍: {car.likes.count()}, "
         text += f"👎: {car.dislikes.count()}\n\n"
         text += f"Joylandi: {car.created_at.strftime('%Y-%m-%d | %H:%M')}"
+
+        if str(call.from_user.id) in ADMINS:
+            text += f"\nHolati: {'✅ Faol' if car.post else '❗️ Nofaol'}"
+
         media_group = [telebot.types.InputMediaPhoto(
             media=car.images.first().image_link, caption=text)]
         for photo in car.images.all()[1:]:

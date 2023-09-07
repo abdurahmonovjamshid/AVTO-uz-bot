@@ -1,4 +1,5 @@
 import re
+import threading
 
 import telebot
 from django.db.models import Q
@@ -8,7 +9,7 @@ from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 from conf.settings import ADMINS, CHANNEL_ID
 
 from ..buttons.default import ask_phone, main_button, main_menu
-from ..buttons.inline import create_social_btn
+from ..buttons.inline import create_social_btn, urlkb
 from ..models import Car, CarImage, Search, TgUser
 from ..services.steps import USER_STEP
 from ..utils.post_car_photo import post_photo_to_telegraph
@@ -29,24 +30,26 @@ def add_car(message, bot):
         user = TgUser.objects.get(telegram_id=message.from_user.id)
         if message.photo:
 
-            photo_info = bot.get_file(message.photo[-1].file_id)
-
-            photo = bot.download_file(photo_info.file_path)
-
-            photo_post_link = post_photo_to_telegraph(photo)
-
             car, created = Car.objects.get_or_create(
                 owner=user, complate=False)
+
             if car.images.count() < 6:
-                CarImage.objects.create(
-                    car=car, image_link=message.photo[-1].file_id, telegraph=photo_post_link)
+                photo_info = bot.get_file(message.photo[-1].file_id)
+                photo = bot.download_file(photo_info.file_path)
+
+                car_image = CarImage.objects.create(
+                    car=car, image_link=message.photo[-1].file_id)
+
+                t1 = threading.Thread(target=post_photo_to_telegraph,
+                                      args=(car_image, photo))
+                t1.start()
 
             if car.delete or not created:
                 bot.delete_message(
                     chat_id=message.from_user.id, message_id=car.delete)
 
             msg = bot.send_message(
-                message.from_user.id, text='Mashina nomini kiriting', parse_mode='html')
+                message.from_user.id, text='🚘 Mashina nomini kiriting\n(<i>Kamida 5 ta belgi</i>)', parse_mode='html')
 
             car.delete = msg.id
             car.save()
@@ -56,15 +59,15 @@ def add_car(message, bot):
                 car.name = message.text.capitalize()
                 car.save()
                 bot.send_message(
-                    message.from_user.id, text='Mashina modelini kiriting', parse_mode='html')
+                    message.from_user.id, text='❕ Mashina markasini kiriting.\n(<i>chevrolet, daewoo, ravon...</i>)', parse_mode='html')
                 user.step = USER_STEP['ADD_MODEL']
                 user.save()
             else:
                 bot.send_message(
-                    message.from_user.id, text='Mashina nomi qabul qilinmadi.\nQayta kiriting', parse_mode='html')
+                    message.from_user.id, text='🚫 Mashina nomi qabul qilinmadi.\nQayta kiriting! \n<i>(kamida 5ta ko\'pi bilan 50ta belgi)</i>', parse_mode='html')
         else:
             bot.send_message(
-                message.from_user.id, text='Iltimos! 2 tadan 6 tagacha Mashinangiz rasmini joylang!')
+                message.from_user.id, text='🚫 Iltimos! <b>2</b> tadan <b>6</b> tagacha Mashinangiz rasmini joylang!', parse_mode='html')
     except Exception as e:
         print(e)
         pass
@@ -80,10 +83,10 @@ def add_model(message, bot):
         user.step = USER_STEP['ADD_YEAR']
         user.save()
         bot.send_message(message.from_user.id,
-                         text='Mashina ishlab chiqarilgan yilni kiriting.', parse_mode='html')
+                         text=f'📅 Mashina ishlab chiqarilgan yilni kiriting.\n<i>(1999-{timezone.now().year})</i>', parse_mode='html')
     else:
         bot.send_message(message.from_user.id,
-                         text='Mashina modeli qabul qilinmadi.\nQayta kiriting.', parse_mode='html')
+                         text='🚫 Mashina markasi qabul qilinmadi.\nQayta kiriting!\n(<i>chevrolet, daewoo, ravon...</i>)', parse_mode='html')
 
 
 def add_year(message, bot):
@@ -99,14 +102,14 @@ def add_year(message, bot):
             user.step = USER_STEP['ADD_PRICE']
             user.save()
             bot.send_message(message.from_user.id,
-                             text='💰 Mashina narxini kiriting! ($$$)', parse_mode='html')
+                             text='💰 Mashina narxini kiriting! ($$$)\n<i>(faqat sonlarda)</i>', parse_mode='html')
         else:
             bot.send_message(
-                message.from_user.id, text='Mashina ishlab chiqarilgan yilni qabul qilinmadi.\nQayta kiriting', parse_mode='html')
+                message.from_user.id, text=f'🚫 Mashina ishlab chiqarilgan yilni qabul qilinmadi.\nQayta kiriting! <i>(1999-{timezone.now().year}</i>)', parse_mode='html')
     except Exception as e:
         print(e)
         bot.send_message(
-            message.from_user.id, text='Mashina ishlab chiqarilgan yil qabul qilinmadi.\nQayta kiriting', parse_mode='html')
+            message.from_user.id, text=f'🚫 Mashina ishlab chiqarilgan yil qabul qilinmadi.\nQayta kiriting! <i>(1999-{timezone.now().year})</i>', parse_mode='html')
 
 
 def add_price(message, bot):
@@ -122,17 +125,17 @@ def add_price(message, bot):
                 user.step = USER_STEP['ADD_DESCRIPTION']
                 user.save()
                 bot.send_message(
-                    message.from_user.id, text='📝 Mashina haqida to\'liq ma\'lumot kiriting', parse_mode='html')
+                    message.from_user.id, text='📝 Mashina haqida to\'liq ma\'lumot kiriting\n<i>(kamida 100ta ko\'pi bilan 800ta belgi)</i>\nM\'lumot kiritishda mashinangiz haraktikasi, rangi, yurgan masofasi va barcha kerakli ma\'lumotlarni kiritishni unutmang!', parse_mode='html')
     except Exception as e:
         print(e)
         bot.send_message(
-            message.from_user.id, text='Mashina narxi qabul qilinmadi.\nQayta kiriting', parse_mode='html')
+            message.from_user.id, text='🚫 Mashina narxi qabul qilinmadi.\nQayta kiriting! <i>(faqat sonlarda)</i>', parse_mode='html')
 
 
 def add_description(message, bot):
     try:
         description = message.text
-        if len(description) < 900:
+        if 100 < len(description) < 800:
             user = TgUser.objects.get(telegram_id=message.from_user.id)
             car = Car.objects.get(owner=user, complate=False)
             car.description = description
@@ -143,10 +146,10 @@ def add_description(message, bot):
                              reply_markup=ask_phone, parse_mode='html')
         else:
             bot.send_message(
-                message.from_user.id, text='Mashina haqida ma\'lumot qabul qilinmadi.\nQayta kiriting', parse_mode='html')
+                message.from_user.id, text='🚫 Mashina haqida ma\'lumot qabul qilinmadi.\nQayta kiriting', parse_mode='html')
     except:
         bot.send_message(
-            message.from_user.id, text='Mashina haqida ma\'lumot qabul qilinmadi.\nQayta kiriting', parse_mode='html')
+            message.from_user.id, text='🚫 Mashina haqida ma\'lumot qabul qilinmadi.\nQayta kiriting', parse_mode='html')
 
 
 def add_number(message, bot):
@@ -160,13 +163,15 @@ def add_number(message, bot):
                 car.complate = True
                 car.save()
                 user.step = USER_STEP['DEFAULT']
+                if user.phone == '-':
+                    user.phone = contact_number
                 user.save()
                 bot.send_message(message.from_user.id, text='E\'lon muvofaqiyatli joylandi',
                                  reply_markup=main_button, parse_mode='html')
 
             else:
                 bot.send_message(
-                    message.from_user.id, text='Iltimos telefon raqamini to\'g\'ri farmatda kiriting.', parse_mode='html')
+                    message.from_user.id, text='🚫 Iltimos telefon raqamini to\'g\'ri farmatda kiriting.', parse_mode='html')
         elif message.content_type == 'contact':
             contact_number = '+'+message.contact.phone_number
             user = TgUser.objects.get(telegram_id=message.from_user.id)
@@ -175,9 +180,8 @@ def add_number(message, bot):
             car.complate = True
             car.save()
             user.step = USER_STEP['DEFAULT']
+            user.phone = contact_number
             user.save()
-            bot.send_message(message.from_user.id, text='E\'lon muvofaqiyatli joylandi',
-                             reply_markup=main_button, parse_mode='html')
 
         if car:
             # send new car to admins and channel
@@ -193,18 +197,31 @@ def add_number(message, bot):
                 ids = ''
                 for a in msg:
                     ids += ','+str(a.id)
+                bot.reply_to(message=msg[0], text="Ushbu e\'lonni o\'chirish", reply_markup=InlineKeyboardMarkup(row_width=1).add(
+                    InlineKeyboardButton(text='Faollashtirish', callback_data=f'post_{car.id}'+ids), InlineKeyboardButton(text=f'O\'chirish', callback_data=f'del_{car.id}'+ids)))
+
+            # send to channel
+            # bot.send_media_group(
+            #     chat_id=CHANNEL_ID, media=media_group)
+
+            # send to the owner
+            if message.from_user.id not in ADMINS:
+
+                msg = bot.send_media_group(
+                    chat_id=message.from_user.id, media=media_group)
+
+                ids = ''
+                for a in msg:
+                    ids += ','+str(a.id)
+
                 bot.reply_to(message=msg[0], text="Ushbu e\'lonni o\'chirish", reply_markup=InlineKeyboardMarkup().add(
                     InlineKeyboardButton(text=f'O\'chirish', callback_data=f'del_{car.id}'+ids)))
 
-            # send to channel
-            bot.send_media_group(
-                chat_id=CHANNEL_ID, media=media_group)
+                msg = bot.send_message(message.from_user.id, text='✅ E\'lon qabul qilindi!\nE\'loningiz tez orada ko\'rib chiqilib Adminlar tomonidan faollashtiriladi!',
+                                       reply_markup=main_button, parse_mode='html')
 
-            # send to the owner
-            msg = bot.send_media_group(
-                chat_id=message.from_user.id, media=media_group)
-            bot.reply_to(message=msg[0], text="Ushbu e\'lonni o\'chirish", reply_markup=InlineKeyboardMarkup().add(
-                InlineKeyboardButton(text=f'O\'chirish', callback_data=f'del_{car.id}'+ids)))
+                bot.reply_to(message=msg, text="Murojat uchun👇",
+                             reply_markup=urlkb)
 
     except Exception as e:
         print(e)
