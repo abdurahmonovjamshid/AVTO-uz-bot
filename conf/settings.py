@@ -21,6 +21,8 @@ TELEGRAM_BOT_TOKEN = env.str('TELEGRAM_BOT_TOKEN')
 ADMINS = env.list('ADMINS')
 CHANNEL_ID = env.list('CHANNEL_ID')
 
+HOST = env.str('HOST')
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -35,10 +37,10 @@ SECRET_KEY = 'django-insecure-i9w$@ana$4ct9=fq^guu#7#-n-916xj)is&8e34iv1(8b&#7%=
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['127.0.0.1', 'abdurahmonovjamshid.jprq.live']
+ALLOWED_HOSTS = ['127.0.0.1', HOST]
 
 CSRF_TRUSTED_ORIGINS = [
-    'https://abdurahmonovjamshid.jprq.live',
+    'https://'+HOST,
 ]
 
 
