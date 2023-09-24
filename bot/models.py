@@ -2,7 +2,7 @@ from django.db import models
 
 
 class TgUser(models.Model):
-    telegram_id = models.IntegerField(unique=True)
+    telegram_id = models.BigIntegerField(unique=True)
     first_name = models.CharField(max_length=255)
     last_name = models.CharField(max_length=255, blank=True, null=True)
     username = models.CharField(max_length=255, blank=True, null=True)

@@ -60,7 +60,8 @@ def telegram_webhook(request):
 
         return HttpResponse("ok")
     except Exception as e:
-        print(e)
+        print('error'*88)
+        traceback.print_tb(e.__traceback__)
         return HttpResponse("error")
 
 
@@ -98,8 +99,8 @@ def start_handler(message):
         response_message = f"Salom, {message.from_user.full_name}!😊 \nBu bot sizga orzuyingizdagi 🏎 mashinani topish yoki, shaxsiy 🚘 mashinangizni tez va oson 🛒 sotuvga qo'yishingizda yordam beradi!!!"
 
         # Send the response message back to the user
-        bot.send_photo(chat_id=message.chat.id, photo=InputFile(
-            file='logo/logo.jpg'), caption=response_message, reply_markup=main_button)
+        bot.send_photo(chat_id=message.chat.id, photo='https://telegra.ph/file/a2c29a823fb22433af042.jpg',
+                       caption=response_message, reply_markup=main_button)
     except Exception as e:
         print(e)
 
