@@ -10,7 +10,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup, InputFile
 
-from conf.settings import ADMINS, CHANNEL_ID, TELEGRAM_BOT_TOKEN
+from conf.settings import ADMINS, CHANNEL_ID, HOST, TELEGRAM_BOT_TOKEN
 
 from .buttons.default import cencel, main_button, main_menu
 from .buttons.inline import create_social_btn, urlkb
@@ -477,3 +477,6 @@ def text_handler(message):
         bot.send_message(313578337, f'{str(e)}')
         print(e)
         traceback.print_tb(e.__traceback__)
+
+
+bot.set_webhook(url="https://"+HOST+"/webhook/")
