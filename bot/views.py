@@ -19,7 +19,7 @@ from .services.addcar import (add_car, add_description, add_model, add_number,
                               add_price, add_year, paginated, search_car)
 from .services.steps import USER_STEP
 
-bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
+bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN, threaded=False)
 
 
 @csrf_exempt
