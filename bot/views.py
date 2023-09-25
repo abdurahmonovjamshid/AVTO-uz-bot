@@ -99,7 +99,7 @@ def start_handler(message):
         response_message = f"Salom, {message.from_user.full_name}!😊 \nBu bot sizga orzuyingizdagi 🏎 mashinani topish yoki, shaxsiy 🚘 mashinangizni tez va oson 🛒 sotuvga qo'yishingizda yordam beradi!!!"
 
         # Send the response message back to the user
-        bot.send_photo(chat_id=message.chat.id, photo='https://telegra.ph/file/a2c29a823fb22433af042.jpg',
+        bot.send_photo(chat_id=message.chat.id, photo='https://telegra.ph/file/6529587f8e3bd7a9b0c56.jpg',
                        caption=response_message, reply_markup=main_button)
     except Exception as e:
         print(e)

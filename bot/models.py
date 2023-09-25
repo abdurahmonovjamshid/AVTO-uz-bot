@@ -60,7 +60,7 @@ class CarImage(models.Model):
     image_link = models.CharField(max_length=100)
 
     telegraph = models.URLField(
-        default='https://telegra.ph/file/a2c29a823fb22433af042.jpg')
+        default='https://telegra.ph/file/6529587f8e3bd7a9b0c56.jpg')
 
     def __str__(self):
         return f"Image for {self.car.name} {self.car.model} ({self.car.year})"
