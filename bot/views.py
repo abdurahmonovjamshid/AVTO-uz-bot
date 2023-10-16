@@ -475,7 +475,7 @@ def text_handler(message):
         else:
             start_handler(message)
     except Exception as e:
-        bot.send_message(313578337, f'{str(e)}')
+        # bot.send_message(313578337, f'{str(e)}')
         print(e)
         traceback.print_tb(e.__traceback__)
 

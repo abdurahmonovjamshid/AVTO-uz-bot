@@ -237,7 +237,7 @@ def get_serach_result(text, user_id):
     if search_text == '/all':
         cars = Car.objects.filter(complate=True).order_by('-created_at')
     elif 50 > len(search_text) > 3:
-        cars = search_cars(search_text=search_text)
+        cars = search_cars(search_text)
     if len(cars) > 2:
         search = Search.objects.create(text=search_text, user=user)
         search_id = search.id
@@ -253,7 +253,7 @@ def paginated(text):
     if search_text == '/all':
         cars = Car.objects.filter(complate=True).order_by('-created_at')
     elif 50 > len(search_text) > 3:
-        cars = search_cars(search_text=search_text)
+        cars = search_cars(search_text)
     return cars
 
 
