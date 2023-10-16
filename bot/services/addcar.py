@@ -233,18 +233,11 @@ def get_serach_result(text, user_id):
     search_text = text
     user = TgUser.objects.get(telegram_id=user_id)
 
-    patterns = search_text.split(' ')
     cars = []
     if search_text == '/all':
-        for car in Car.objects.filter(complate=True).order_by('-created_at'):
-            if car not in cars:
-                cars.append(car)
+        cars = Car.objects.filter(complate=True).order_by('-created_at')
     elif 50 > len(search_text) > 3:
-        for pattern in patterns:
-            if len(pattern) > 3:
-                for car in search_cars(search_text=pattern):
-                    if car not in cars:
-                        cars.append(car)
+        cars = search_cars(search_text=search_text)
     if len(cars) > 2:
         search = Search.objects.create(text=search_text, user=user)
         search_id = search.id
@@ -256,19 +249,11 @@ def get_serach_result(text, user_id):
 
 def paginated(text):
     search_text = text
-    patterns = search_text.split(' ')
     cars = []
     if search_text == '/all':
-        for car in Car.objects.filter(complate=True).order_by('-created_at'):
-            if car not in cars:
-                cars.append(car)
+        cars = Car.objects.filter(complate=True).order_by('-created_at')
     elif 50 > len(search_text) > 3:
-        for pattern in patterns:
-            if len(pattern) > 3:
-                for car in search_cars(search_text=pattern):
-                    if car not in cars:
-                        cars.append(car)
-
+        cars = search_cars(search_text=search_text)
     return cars
 
 
