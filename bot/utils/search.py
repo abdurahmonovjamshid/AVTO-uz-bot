@@ -15,17 +15,18 @@ def search_cars(query):
     description_query = Q()
 
     for term in search_terms:
-        name_query |= Q(name__icontains=term)
-        model_query |= Q(model__icontains=term)
-        year_query |= Q(year__icontains=term)
-        price_query |= Q(price__icontains=term)
-        description_query |= Q(description__icontains=term)
+        if len(term) >= 3:
+            name_query |= Q(name__icontains=term)
+            model_query |= Q(model__icontains=term)
+            year_query |= Q(year__icontains=term)
+            price_query |= Q(price__icontains=term)
+            description_query |= Q(description__icontains=term)
 
     # Combine the queries for all fields
     all_fields_query = name_query | model_query | year_query | price_query | description_query
 
     # Perform the search query
-    results = Car.objects.filter(all_fields_query)
+    results = Car.objects.filter(all_fields_query, post=True)
 
     # Calculate fuzzy matching score for each result
     fuzzy_scores = []

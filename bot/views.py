@@ -188,7 +188,7 @@ def statistics(message):
     try:
         today = timezone.localdate()
         all_users = TgUser.objects.all().count()
-        all_cars = Car.objects.all().count()
+        all_cars = Car.objects.filter(post=True).count()
         bot.send_message(chat_id=message.from_user.id,
                          text=f"📊 Statistika ({today})\n\n<strong>👥 Bot foydalanuvchilari</strong>: <code>{all_users}</code>,\n       ------\n<strong>🧾 Joylangan e'lonlar</strong>: <code>{all_cars}</code>.", parse_mode='html')
     except Exception as e:
@@ -216,7 +216,7 @@ def cm_start(message):
             cars = user.car_set.filter(complate=True)
             for car in cars:
 
-                text = f"Nomi: {car.name},\nModeli: {car.model},\nIshlab chiqarilgan yil: {car.year},\nNarxi: {car.price}$,\nQo'shimcha malumot: \n{car.description},\n\nBog'lanish: {car.contact_number}\n\n"
+                text = f"Nomi: {car.name},\nModeli: {car.model},\nIshlab chiqarilgan yil: {car.year},\nNarxi: {'{:,.2f}'.format(car.price).rstrip('0').rstrip('.')}$,\nQo'shimcha malumot: \n{car.description},\n\nBog'lanish: {car.contact_number}\n\n"
                 text += f"👁: {car.seen.count()}, "
                 text += f"👍: {car.likes.count()}, "
                 text += f"👎: {car.dislikes.count()}\n\n"
@@ -339,7 +339,7 @@ def remove_message(call):
                 bot.send_message(chat_id=car.owner.telegram_id,
                                  text=f"<b>{car}</b> e'loningiz faollashtirildi!", parse_mode='html')
 
-                text = f"Nomi: {car.name},\nModeli: {car.model},\nIshlab chiqarilgan yil: {car.year},\nNarxi: {car.price},\nQo'shimcha malumot: \n{car.description},\n\nBog'lanish: {car.contact_number}"
+                text = f"Nomi: {car.name},\nModeli: {car.model},\nIshlab chiqarilgan yil: {car.year},\nNarxi: {'{:,.2f}'.format(car.price).rstrip('0').rstrip('.')}$,\nQo'shimcha malumot: \n{car.description},\n\nBog'lanish: {car.contact_number}"
                 media_group = [telebot.types.InputMediaPhoto(
                     media=car.images.first().image_link, caption=text)]
                 for photo in car.images.all()[1:]:
@@ -367,7 +367,7 @@ def retrieve_car(call):
         car = Car.objects.get(pk=car_id)
         car.seen.add(TgUser.objects.get(telegram_id=call.from_user.id))
 
-        text = f"Nomi: {car.name},\nModeli: {car.model},\nIshlab chiqarilgan yil: {car.year},\nNarxi: {car.price},\n"
+        text = f"Nomi: {car.name},\nModeli: {car.model},\nIshlab chiqarilgan yil: {car.year},\nNarxi: {'{:,.2f}'.format(car.price).rstrip('0').rstrip('.')}$,\n"
         text += f"Qo'shimcha malumot: \n{car.description},\n\n"
         text += f"Bog'lanish: {car.contact_number}\n\n"
         text += f"👁: {car.seen.count()}, "
@@ -407,7 +407,7 @@ def retrieve_car(call):
         #                    message_id=call.message.id)
 
         reply_to_message = call.message.reply_to_message
-        text = f"Nomi: {car.name},\nModeli: {car.model},\nIshlab chiqarilgan yil: {car.year},\nNarxi: {car.price},\n"
+        text = f"Nomi: {car.name},\nModeli: {car.model},\nIshlab chiqarilgan yil: {car.year},\nNarxi: {'{:,.2f}'.format(car.price).rstrip('0').rstrip('.')}$,\n"
         text += f"Qo'shimcha malumot: \n{car.description},\n\n"
         text += f"Bog'lanish: {car.contact_number}\n\n"
         text += f"👁: {car.seen.count()}, "
@@ -437,7 +437,7 @@ def retrieve_car(call):
         #                    message_id=call.message.id)
 
         reply_to_message = call.message.reply_to_message
-        text = f"Nomi: {car.name},\nModeli: {car.model},\nIshlab chiqarilgan yil: {car.year},\nNarxi: {car.price},\n"
+        text = f"Nomi: {car.name},\nModeli: {car.model},\nIshlab chiqarilgan yil: {car.year},\nNarxi: {'{:,.2f}'.format(car.price).rstrip('0').rstrip('.')}$,\n"
         text += f"Qo'shimcha malumot: \n{car.description},\n\n"
         text += f"Bog'lanish: {car.contact_number}\n\n"
         text += f"👁: {car.seen.count()}, "
