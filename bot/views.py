@@ -9,7 +9,8 @@ from django.http import HttpResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup, InputFile
-
+from datetime import timedelta
+from django.utils import timezone
 from conf.settings import ADMINS, CHANNEL_ID, HOST, TELEGRAM_BOT_TOKEN
 
 from .buttons.default import cencel, main_button, main_menu
@@ -186,6 +187,14 @@ def cm_start(message):
 @bot.message_handler(regexp="📊 Statistika")
 def statistics(message):
     try:
+        threshold_date = timezone.now() - timedelta(days=15)
+        # Query all cars that meet the conditions
+        filtered_cars = Car.objects.filter(
+            created_at__lte=threshold_date, post=True)
+        for car in filtered_cars:
+            car.post = False
+            car.save()
+
         today = timezone.localdate()
         all_users = TgUser.objects.all().count()
         all_cars = Car.objects.filter(post=True).count()
@@ -202,6 +211,14 @@ def start_search_car(message):
             step=USER_STEP['SEARCH_CAR'])
         bot.send_message(chat_id=message.from_user.id,
                          text="Joylangan e'lonlarni qidirish uchun mashina malumotlarini kiriting", reply_markup=main_menu)
+
+        threshold_date = timezone.now() - timedelta(days=15)
+        # Query all cars that meet the conditions
+        filtered_cars = Car.objects.filter(
+            created_at__lte=threshold_date, post=True)
+        for car in filtered_cars:
+            car.post = False
+            car.save()
 
     except Exception as e:
         print(e)
