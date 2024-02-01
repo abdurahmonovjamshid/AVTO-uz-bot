@@ -41,8 +41,6 @@ def telegram_webhook(request):
                 language_code = tg_user.language_code
 
                 deleted = False
-                if update.message.left_chat_member and update.message.left_chat_member.id == telegram_id:
-                    deleted = True
 
                 tg_user_instance, _ = TgUser.objects.update_or_create(
                     telegram_id=telegram_id,
@@ -55,6 +53,15 @@ def telegram_webhook(request):
                         'deleted': deleted,
                     }
                 )
+
+            try:
+                if update.my_chat_member.new_chat_member.status == 'kicked':
+                    telegram_id = update.my_chat_member.from_user.id
+                    user = TgUser.objects.get(telegram_id=telegram_id)
+                    user.deleted = True
+                    user.save()
+            except:
+                pass
 
             bot.process_new_updates(
                 [telebot.types.Update.de_json(request.body.decode("utf-8"))])
@@ -187,6 +194,22 @@ def cm_start(message):
 @bot.message_handler(regexp="📊 Statistika")
 def statistics(message):
     try:
+        if str(message.from_user.id) in ADMINS:
+            threshold_date = timezone.now() - timedelta(days=15)
+            # Query all cars that meet the conditions
+            filtered_cars = Car.objects.filter(
+                created_at__lte=threshold_date, post=True)
+            for car in filtered_cars:
+                car.post = False
+                car.save()
+
+            today = timezone.localdate()
+            all_users = TgUser.objects.all().count()
+            deleted_users = TgUser.objects.filter(deleted=True).count()
+            all_cars = Car.objects.filter(post=True).count()
+            bot.send_message(chat_id=message.from_user.id,
+                             text=f"📊 Statistika ({today})\n\n<strong>👥 Bot foydalanuvchilari</strong>: <code>{all_users}</code>,\n       ------\n<strong>❌ O'chirilgan foydalanuvchilar</strong>: <code>{deleted_users}</code>,\n       ------\n<strong>🧾 Joylangan e'lonlar</strong>: <code>{all_cars}</code>.", parse_mode='html')
+            return
         threshold_date = timezone.now() - timedelta(days=15)
         # Query all cars that meet the conditions
         filtered_cars = Car.objects.filter(
@@ -240,26 +263,33 @@ def cm_start(message):
         if user.car_set.exists():
             cars = user.car_set.filter(complate=True)
             for car in cars:
-
-                text = f"Nomi: {car.name},\nModeli: {car.model},\nIshlab chiqarilgan yil: {car.year},\nNarxi: {'{:,.2f}'.format(car.price).rstrip('0').rstrip('.')}$,\nQo'shimcha malumot: \n{car.description},\n\nBog'lanish: {car.contact_number}\n\n"
-                text += f"👁: {car.seen.count()}, "
-                text += f"👍: {car.likes.count()}, "
-                text += f"👎: {car.dislikes.count()}\n\n"
-                text += f"📤 Joylandi: {car.created_at.strftime('%Y-%m-%d | %H:%M')}\n"
-                text += f"Holati: {'✅ Faol' if car.post else '❗️ Nofaol'}"
-                media_group = [telebot.types.InputMediaPhoto(
-                    media=car.images.first().image_link, caption=text)]
-                for photo in car.images.all()[1:]:
-                    media_group.append(
-                        telebot.types.InputMediaPhoto(media=photo.image_link))
-
-                msg = bot.send_media_group(
-                    chat_id=message.chat.id, media=media_group)
-                ids = ''
-                for a in msg:
-                    ids += ','+str(a.id)
-                bot.reply_to(message=msg[0], text="Ushbu e\'lonni o\'chirish", reply_markup=InlineKeyboardMarkup().add(
-                    InlineKeyboardButton(text=f'O\'chirish', callback_data=f'del_{car.id}'+ids)))
+                try:
+                    text = f"Nomi: {car.name},\nModeli: {car.model},\nIshlab chiqarilgan yil: {car.year},\nNarxi: {'{:,.2f}'.format(car.price).rstrip('0').rstrip('.')}$,\nQo'shimcha malumot: \n{car.description[:900]},\n\nBog'lanish: {car.contact_number}\n\n"
+                    text += f"👁: {car.seen.count()}, "
+                    text += f"👍: {car.likes.count()}, "
+                    text += f"👎: {car.dislikes.count()}\n\n"
+                    text += f"📤 Joylandi: {car.created_at.strftime('%Y-%m-%d | %H:%M')}\n"
+                    text += f"Holati: {'✅ Faol' if car.post else '❗️ Nofaol'}"
+                    media_group = [telebot.types.InputMediaPhoto(
+                        media=car.images.first().image_link, caption=text[:1024])]
+                    for photo in car.images.all()[1:]:
+                        try:
+                            media_group.append(
+                                telebot.types.InputMediaPhoto(media=photo.image_link))
+                        except:
+                            pass
+                    try:
+                        msg = bot.send_media_group(
+                            chat_id=message.chat.id, media=media_group)
+                        ids = ''
+                        for a in msg:
+                            ids += ','+str(a.id)
+                        bot.reply_to(message=msg[0], text="Ushbu e\'lonni o\'chirish", reply_markup=InlineKeyboardMarkup().add(
+                            InlineKeyboardButton(text=f'O\'chirish', callback_data=f'del_{car.id}'+ids)))
+                    except Exception as e:
+                        print(e)
+                except:
+                    return
         else:
             bot.send_message(chat_id=message.from_user.id,
                              text="Sizda e'lonlar yo'q")
@@ -364,7 +394,7 @@ def remove_message(call):
                 bot.send_message(chat_id=car.owner.telegram_id,
                                  text=f"<b>{car}</b> e'loningiz faollashtirildi!", parse_mode='html')
 
-                text = f"Nomi: {car.name},\nModeli: {car.model},\nIshlab chiqarilgan yil: {car.year},\nNarxi: {'{:,.2f}'.format(car.price).rstrip('0').rstrip('.')}$,\nQo'shimcha malumot: \n{car.description},\n\nBog'lanish: {car.contact_number}"
+                text = f"Nomi: {car.name},\nModeli: {car.model},\nIshlab chiqarilgan yil: {car.year},\nNarxi: {'{:,.2f}'.format(car.price).rstrip('0').rstrip('.')}$,\nQo'shimcha malumot: \n{car.description[:900]},\n\nBog'lanish: {car.contact_number}"
                 media_group = [telebot.types.InputMediaPhoto(
                     media=car.images.first().image_link, caption=text)]
                 for photo in car.images.all()[1:]:
@@ -393,7 +423,7 @@ def retrieve_car(call):
         car.seen.add(TgUser.objects.get(telegram_id=call.from_user.id))
 
         text = f"Nomi: {car.name},\nModeli: {car.model},\nIshlab chiqarilgan yil: {car.year},\nNarxi: {'{:,.2f}'.format(car.price).rstrip('0').rstrip('.')}$,\n"
-        text += f"Qo'shimcha malumot: \n{car.description},\n\n"
+        text += f"Qo'shimcha malumot: \n{car.description[:900]},\n\n"
         text += f"Bog'lanish: {car.contact_number}\n\n"
         text += f"👁: {car.seen.count()}, "
         text += f"👍: {car.likes.count()}, "
@@ -433,7 +463,7 @@ def retrieve_car(call):
 
         reply_to_message = call.message.reply_to_message
         text = f"Nomi: {car.name},\nModeli: {car.model},\nIshlab chiqarilgan yil: {car.year},\nNarxi: {'{:,.2f}'.format(car.price).rstrip('0').rstrip('.')}$,\n"
-        text += f"Qo'shimcha malumot: \n{car.description},\n\n"
+        text += f"Qo'shimcha malumot: \n{car.description[:900]},\n\n"
         text += f"Bog'lanish: {car.contact_number}\n\n"
         text += f"👁: {car.seen.count()}, "
         text += f"👍: {car.likes.count()}, "
@@ -463,7 +493,7 @@ def retrieve_car(call):
 
         reply_to_message = call.message.reply_to_message
         text = f"Nomi: {car.name},\nModeli: {car.model},\nIshlab chiqarilgan yil: {car.year},\nNarxi: {'{:,.2f}'.format(car.price).rstrip('0').rstrip('.')}$,\n"
-        text += f"Qo'shimcha malumot: \n{car.description},\n\n"
+        text += f"Qo'shimcha malumot: \n{car.description[:900]},\n\n"
         text += f"Bog'lanish: {car.contact_number}\n\n"
         text += f"👁: {car.seen.count()}, "
         text += f"👍: {car.likes.count()}, "

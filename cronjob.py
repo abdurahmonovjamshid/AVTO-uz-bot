@@ -72,7 +72,7 @@ for div_element in div_elements[1:]:
         # print(formatted_text+description)
         # print('-'*88)
         if not Car.objects.filter(contact_number=single_car_url).exists():
-            owner = TgUser.objects.get(telegram_id=6116838287)
+            owner = TgUser.objects.get(telegram_id=6881836818)
             car = Car.objects.create(owner=owner, name=name, model=brand, year=year, price=float(
                 price), description=formatted_text+description, contact_number=number, complate=True, post=True)
 
