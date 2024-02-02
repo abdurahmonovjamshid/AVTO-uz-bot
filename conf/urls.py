@@ -19,6 +19,7 @@ from django.http import HttpResponse
 from django.urls import path
 
 from bot.views import telegram_webhook
+from bot.views import CreateCarView
 
 
 def home(request):
@@ -29,4 +30,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', home),
     path('webhook/', telegram_webhook, name='telegram_webhook'),
+
+    path('api/cars/', CreateCarView.as_view(), name='create-car'),
 ]

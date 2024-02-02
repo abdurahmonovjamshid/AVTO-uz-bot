@@ -19,8 +19,14 @@ from .models import Car, Search, TgUser
 from .services.addcar import (add_car, add_description, add_model, add_number,
                               add_price, add_year, paginated, search_car)
 from .services.steps import USER_STEP
+from rest_framework.generics import CreateAPIView
+from .serializers import CarSerializer
 
 bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN, threaded=False)
+
+
+class CreateCarView(CreateAPIView):
+    serializer_class = CarSerializer
 
 
 @csrf_exempt
