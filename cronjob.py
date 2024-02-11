@@ -7,15 +7,6 @@ import telebot
 import time
 from get_number import getnumber
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(BASE_DIR)
-
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "conf.settings")
-django.setup()
-
-from bot.views import bot
-from bot.models import Car, TgUser, CarImage
-
 
 url_source = 'https://avtoelon.uz'
 # Fetch the HTML content of a web page
@@ -69,32 +60,45 @@ for div_element in div_elements[1:]:
                 dd_text = pairs[i + 1].get_text(strip=True)
                 formatted_text += f"{dt_text} {dd_text},\n"
 
-        # print(formatted_text+description)
-        # print('-'*88)
-        if not Car.objects.filter(contact_number=single_car_url).exists():
-            owner = TgUser.objects.get(telegram_id=6881836818)
-            car = Car.objects.create(owner=owner, name=name, model=brand, year=year, price=float(
-                price), description=formatted_text+description, contact_number=number, complate=True, post=True)
+        photo_tags = div_element.find_all('a', class_='small-thumb')
+        main_photo = div_element.find('div', class_='main-photo')
 
-            photo_tags = div_element.find_all('a', class_='small-thumb')
-            main_photo = div_element.find('div', class_='main-photo')
-            try:
-                CarImage.objects.create(
-                    car=car, image_link=main_photo.a.get('href'), telegraph=main_photo.a.get('href'))
-                for i, photo_tag in enumerate(photo_tags[1:]):
-                    if i >= 6:  # Maximum number of photos reached
-                        break
-                    href = photo_tag.get('href')
+        url = "https://avtouzbot.pythonanywhere.com/api/cars/"
 
-                    CarImage.objects.create(
-                        car=car, image_link=href, telegraph=href)
-                print(car)
+        images = []
 
-            except:
-                car.delete()
-                print('deleted')
+        try:
+            images.append({'image_link': main_photo.a.get(
+                'href'), 'telegraph': main_photo.a.get('href')})
+            for i, photo_tag in enumerate(photo_tags[1:]):
+                if i >= 5:  # Maximum number of photos reached
+                    break
+                href = photo_tag.get('href')
+
+                images.append({'image_link': href, 'telegraph': href})
+
+        except Exception as e:
+            print(e)
+
+        # Define the car data to be posted
+        car_data = {
+            "owner_telegram_id": 6881836818,  # The owner's Telegram ID
+            "name": name,
+            "model": brand,
+            "year": year,
+            "price": float(price),
+            "description": formatted_text+description,
+            "contact_number": number,
+            "images": images,
+            "complate":True
+        }
+
+        response = requests.post(url, json=car_data)
+
+        if response.status_code == 201:
+            print("Car data posted successfully!")
         else:
-            print('car found')
+            print("Failed to post car data. Error:", response.text)
 
     except Exception as e:
         print(e)

@@ -32,6 +32,7 @@ class CarSerializer(serializers.ModelSerializer):
 
         validated_data['owner'] = owner
         validated_data['post'] = True
+        validated_data['complate'] = True
         car = Car.objects.create(**validated_data)
         for image_data in images_data:
             CarImage.objects.create(car=car, **image_data)

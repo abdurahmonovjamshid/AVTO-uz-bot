@@ -1,34 +1,29 @@
 import requests
 
-# Define the API endpoint URL
-url = "http://56d5-84-54-90-131.ngrok-free.app/api/cars/"
+# Replace 'YOUR_BOT_TOKEN' with your actual bot token
+bot_token = '6329228284:AAHUQcqbN3Cs8ndat8ILnuhSpMedn03mOX4'
 
-# Define the car data to be posted
-car_data = {
-    "owner_telegram_id": 6881836818,  # The owner's Telegram ID
-    "name": "Example Car",
-    "model": "XYZ",
-    "year": 2022,
-    "price": 25000,
-    "description": "This is an example car.",
-    "contact_number": "+998906666666",
-    "images": [
-        {
-            "image_link": "https://telegra.ph/file/6529587f8e3bd7a9b0c56.jpg",
-            "telegraph": "https://telegra.ph/file/6529587f8e3bd7a9b0c56.jpg"
-        },
-        {
-            "image_link": "https://telegra.ph/file/6529587f8e3bd7a9b0c56.jpg",
-            "telegraph": "https://telegra.ph/file/6529587f8e3bd7a9b0c56.jpg"
-        }
-    ]
-}
+# Replace 'CHAT_ID' with the ID of the chat from which you want to retrieve messages
+user_id = '6868629518'
 
-# Send the POST request to create the car
-response = requests.post(url, json=car_data)
+def get_chat_info(user_id):
+    # Define the API endpoint URL
+    url = f"https://api.telegram.org/bot{bot_token}/getChat"
 
-# Check the response status code
-if response.status_code == 201:
-    print("Car data posted successfully!")
-else:
-    print("Failed to post car data. Error:", response.text)
+    # Define the request payload
+    payload = {
+        'chat_id': user_id
+    }
+
+    # Send the POST request to retrieve the chat information
+    response = requests.post(url, json=payload)
+
+    # Check the response status code
+    if response.status_code == 200:
+        chat_info = response.json()
+        print("Chat information:", chat_info)
+    else:
+        print("Failed to retrieve chat information. Error:", response.text)
+
+# Call the get_chat_info function
+get_chat_info(user_id)
