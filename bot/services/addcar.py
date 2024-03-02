@@ -271,7 +271,7 @@ def search_car(message, bot):
         for car in cars:
             car.seen.add(TgUser.objects.get(telegram_id=message.from_user.id))
             car_id = car.id
-            text = f"Nomi: {car.name},\nModeli: {car.model},\nIshlab chiqarilgan yil: {car.year},\nNarxi: {car.price}$,\nQo'shimcha malumot: \n{car.description[:800]},\n\nBog'lanish: {car.contact_number}\n\n"
+            text = f"Nomi: {car.name},\nModeli: {car.model},\nIshlab chiqarilgan yil: {car.year},\nNarxi: {'{:,.2f}'.format(car.price).rstrip('0').rstrip('.')}$,\nQo'shimcha malumot: \n{car.description[:800]},\n\nBog'lanish: {car.contact_number}\n\n"
             text += f"👁: {car.seen.count()}, "
             text += f"👍: {car.likes.count()}, "
             text += f"👎: {car.dislikes.count()}\n\n"
