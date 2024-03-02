@@ -1,3 +1,4 @@
+from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
@@ -29,6 +30,3 @@ def getnumber(url):
     except Exception as e:
         print(e)
     return phone_number
-
-
-getnumber('https://avtoelon.uz/a/show/4085167')

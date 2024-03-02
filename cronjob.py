@@ -82,7 +82,7 @@ for div_element in div_elements[1:]:
 
         # Define the car data to be posted
         car_data = {
-            "owner_telegram_id": 6881836818,  # The owner's Telegram ID
+            "owner_telegram_id": 872978271,  # The owner's Telegram ID
             "name": name,
             "model": brand,
             "year": year,
