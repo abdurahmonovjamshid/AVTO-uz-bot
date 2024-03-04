@@ -28,5 +28,6 @@ def getnumber(url):
 
         driver.quit()
     except Exception as e:
+        driver.quit()
         print(e)
     return phone_number

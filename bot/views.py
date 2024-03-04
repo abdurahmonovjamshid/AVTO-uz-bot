@@ -28,6 +28,21 @@ bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN, threaded=False)
 class CreateCarView(CreateAPIView):
     serializer_class = CarSerializer
 
+    def create(self, request, *args, **kwargs):
+        response = super().create(request, *args, **kwargs)
+        car = self.object 
+        text = f"Nomi: {car.name},\nModeli: {car.model},\nIshlab chiqarilgan yil: {car.year},\nNarxi: {'{:,.2f}'.format(car.price).rstrip('0').rstrip('.')}$,\nQo'shimcha malumot: \n{car.description[:800]},\n\nBog'lanish: {car.contact_number}"
+        media_group = [telebot.types.InputMediaPhoto(
+            media=car.images.first().image_link, caption=text)]
+        for photo in car.images.all()[1:]:
+            media_group.append(
+                telebot.types.InputMediaPhoto(media=photo.image_link))
+
+        bot.send_media_group(
+                    chat_id=CHANNEL_ID, media=media_group)
+
+        return response
+
 
 @csrf_exempt
 def telegram_webhook(request):
