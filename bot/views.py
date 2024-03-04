@@ -74,7 +74,6 @@ def telegram_webhook(request):
 
         return HttpResponse("ok")
     except Exception as e:
-        print('error'*88)
         traceback.print_tb(e.__traceback__)
         return HttpResponse("error")
 
@@ -122,7 +121,6 @@ def start_handler(message):
 @bot.message_handler(commands=['all'])
 def all_cars(message):
     try:
-        print(ADMINS)
         if str(message.from_user.id) in ADMINS:
             search_car(message=message, bot=bot)
         else:
@@ -512,7 +510,6 @@ def retrieve_car(call):
     except Exception as e:
         bot.answer_callback_query(
             callback_query_id=call.id, text='You already disliked', show_alert=True)
-
         print(e)
 
 
